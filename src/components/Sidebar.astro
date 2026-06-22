@@ -1,0 +1,41 @@
+---
+import { getCollection } from "astro:content";
+import { buildTree } from "../lib/categories";
+import CategoryTree from "./CategoryTree.astro";
+
+const base = import.meta.env.BASE_URL;
+const path = Astro.url.pathname;
+
+const posts = await getCollection("posts");
+const tree = buildTree(posts);
+
+const prefix = `${base}categories/`;
+const currentSlug = path.startsWith(prefix)
+  ? decodeURIComponent(path.slice(prefix.length).replace(/\/$/, ""))
+  : "";
+const isAll = path === base;
+---
+<aside class="sidebar">
+  <section class="side-block">
+    <h3 class="side-title">📂 Categories</h3>
+    <ul class="cat-list" data-depth="0">
+      <li>
+        <a href={base} class={isAll ? "active" : ""}>
+          All <span class="count">{posts.length}</span>
+        </a>
+      </li>
+    </ul>
+    <CategoryTree nodes={tree} currentSlug={currentSlug} base={base} />
+  </section>
+
+  <section class="side-block profile">
+    <div class="avatar">oo</div>
+    <div class="pname">oo-ni</div>
+    <div class="ptitle">backend developer</div>
+    <p class="pbio">Java / Spring 중심으로 공부한 내용을 기록합니다.</p>
+    <div class="social">
+      <a href="https://github.com/oo-ni" target="_blank" rel="noopener">GitHub</a>
+      <a href="mailto:gdbsrjsdn@gmail.com">Email</a>
+    </div>
+  </section>
+</aside>

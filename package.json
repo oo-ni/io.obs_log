@@ -1,0 +1,19 @@
+{
+  "name": "blog-astro",
+  "type": "module",
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "sync": "node sync.mjs",
+    "post": "node sync.mjs && git add -A && git commit -m \"content: update posts\" && git push"
+  },
+  "dependencies": {
+    "astro": "^6.4.7"
+  }
+}

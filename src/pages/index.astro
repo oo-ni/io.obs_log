@@ -1,0 +1,18 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import PostCard from "../components/PostCard.astro";
+
+const posts = (await getCollection("posts")).sort(
+  (a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0)
+);
+---
+<Base title="oo-ni.log">
+  <div class="page-head">
+    <h1>All Posts</h1>
+    <span class="page-count">{posts.length} posts</span>
+  </div>
+  <div class="card-grid">
+    {posts.map((p) => <PostCard post={p} />)}
+  </div>
+</Base>

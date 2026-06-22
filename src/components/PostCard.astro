@@ -1,0 +1,28 @@
+---
+import type { CollectionEntry } from "astro:content";
+interface Props { post: CollectionEntry<"posts">; }
+const { post } = Astro.props;
+
+const base = import.meta.env.BASE_URL;
+const fmt = (d?: Date) => (d ? d.toISOString().slice(0, 10).replace(/-/g, ".") : "");
+const slug = (t: string) => t.toLowerCase().replace(/\s+/g, "-");
+---
+<article class="card">
+  {post.data.category && (
+    <a class="card-cat" href={`${base}categories/${slug(post.data.category)}`}>
+      {post.data.category}
+    </a>
+  )}
+  <h2 class="card-title">
+    <a href={`${base}posts/${post.id}`}>{post.data.title}</a>
+  </h2>
+  <time class="card-date">{fmt(post.data.date)}</time>
+  {post.data.description && <p class="card-excerpt">{post.data.description}</p>}
+  {post.data.tags.length > 0 && (
+    <div class="card-tags">
+      {post.data.tags.map((t) => (
+        <a class="tag" href={`${base}tags/${slug(t)}`}>#{t}</a>
+      ))}
+    </div>
+  )}
+</article>

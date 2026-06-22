@@ -1,0 +1,20 @@
+---
+import type { CatNode } from "../lib/categories";
+interface Props { nodes: CatNode[]; currentSlug: string; base: string; depth?: number; }
+const { nodes, currentSlug, base, depth = 0 } = Astro.props;
+---
+<ul class="cat-list" data-depth={depth}>
+  {nodes.map((node) => (
+    <li>
+      <a
+        href={`${base}categories/${node.slug}`}
+        class={currentSlug === node.slug ? "active" : ""}
+      >
+        {node.name} <span class="count">{node.count}</span>
+      </a>
+      {node.children.length > 0 && (
+        <Astro.self nodes={node.children} currentSlug={currentSlug} base={base} depth={depth + 1} />
+      )}
+    </li>
+  ))}
+</ul>

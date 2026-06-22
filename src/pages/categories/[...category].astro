@@ -1,0 +1,25 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import PostCard from "../../components/PostCard.astro";
+import { allCategoryPaths } from "../../lib/categories";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("posts");
+  return allCategoryPaths(posts).map((c) => ({
+    params: { category: c.slug },
+    props: { name: c.parts.join(" / "), posts: c.posts },
+  }));
+}
+
+const { name, posts } = Astro.props;
+---
+<Base title={name}>
+  <div class="page-head">
+    <h1>{name}</h1>
+    <span class="page-count">{posts.length} posts</span>
+  </div>
+  <div class="card-grid">
+    {posts.map((p) => <PostCard post={p} />)}
+  </div>
+</Base>
