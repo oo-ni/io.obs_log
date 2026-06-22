@@ -2,7 +2,7 @@
 title: "Circuit Breaker"
 date: 2026-06-18
 tags: ["MSA", "Web"]
-category: "Computer Science"
+category: "Computer Science/Design Pattern"
 description: "MSA 환경에서의 장애 발생 모든 서비스 운영에서는 아무리 완벽한 설계를 했다고 해도, 예기치 못한 에러가 발생할 수 밖에 없다. 때문에 우리는 완벽한 시스템을 만들기 보다, 실패에 빠르고 유연하게 대응할 수 있는 시스템을 만드는 것"
 ---
 
