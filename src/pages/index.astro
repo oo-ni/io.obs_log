@@ -2,17 +2,32 @@
 import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import PostCard from "../components/PostCard.astro";
+import Socials from "../components/Socials.astro";
 
+const base = import.meta.env.BASE_URL;
+const RECENT = 4;
 const posts = (await getCollection("posts")).sort(
   (a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0)
 );
+const recent = posts.slice(0, RECENT);
 ---
-<Base title="oo-ni.log">
-  <div class="page-head">
-    <h1>All Posts</h1>
-    <span class="page-count">{posts.length} posts</span>
-  </div>
-  <div class="card-grid">
-    {posts.map((p) => <PostCard post={p} />)}
-  </div>
+<Base title="oo-ni.log" sidebar={false}>
+  <section class="intro">
+    <h1>oo-ni.dev_log</h1>
+    <p>
+      <!-- I'm <strong>oo-ni</strong>, a developer. <br /> -->
+      This blog is where I experiment with web development, infrastructure, and AI, archiving the knowledge and insights I gather along the way. <br /><br />
+      I also share posts about everyday life and hobbies. <br /><br />
+      In the end, only the record remains.
+    </p>
+    <Socials />
+  </section>
+
+  <section class="home-section">
+    <h2 class="section-head">Recent Posts</h2>
+    <div class="card-grid">
+      {recent.map((p, i) => <PostCard post={p} index={i} />)}
+    </div>
+    <p class="all-posts-link"><a href={`${base}posts`}>All Posts →</a></p>
+  </section>
 </Base>

@@ -2,6 +2,7 @@
 import { getCollection } from "astro:content";
 import { buildTree } from "../lib/categories";
 import CategoryTree from "./CategoryTree.astro";
+import Socials from "./Socials.astro";
 
 const base = import.meta.env.BASE_URL;
 const path = Astro.url.pathname;
@@ -13,14 +14,15 @@ const prefix = `${base}categories/`;
 const currentSlug = path.startsWith(prefix)
   ? decodeURIComponent(path.slice(prefix.length).replace(/\/$/, ""))
   : "";
-const isAll = path === base;
+const postsPath = `${base}posts`;
+const isAll = path === postsPath || path === `${postsPath}/`;
 ---
-<aside class="sidebar">
+<aside class="sidebar" data-pagefind-ignore>
   <section class="side-block">
     <h3 class="side-title">📂 Categories</h3>
     <ul class="cat-list" data-depth="0">
       <li>
-        <a href={base} class={isAll ? "active" : ""}>
+        <a href={postsPath} class={isAll ? "active" : ""}>
           All <span class="count">{posts.length}</span>
         </a>
       </li>
@@ -29,13 +31,10 @@ const isAll = path === base;
   </section>
 
   <section class="side-block profile">
-    <div class="avatar">oo</div>
+    <!-- <div class="avatar">O</div> -->
     <div class="pname">oo-ni</div>
-    <div class="ptitle">backend developer</div>
-    <p class="pbio">Java / Spring 중심으로 공부한 내용을 기록합니다.</p>
-    <div class="social">
-      <a href="https://github.com/oo-ni" target="_blank" rel="noopener">GitHub</a>
-      <a href="mailto:gdbsrjsdn@gmail.com">Email</a>
-    </div>
+    <div class="ptitle">Software Engineer</div>
+    <p class="pbio">Within what you can control, the depth of your desire decides everything.</p>
+    <Socials />
   </section>
 </aside>

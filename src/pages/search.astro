@@ -1,0 +1,51 @@
+---
+import Base from "../layouts/Base.astro";
+const base = import.meta.env.BASE_URL;
+---
+<Base title="Search" description="Search posts" sidebar={false}>
+  <div class="page-head"><h1>Search</h1></div>
+  <div id="pagefind-search" data-base={base}></div>
+
+  <script>
+    // View Transitions 대응: 매 페이지 로드마다 검색 UI를 초기화한다.
+    function initSearch() {
+      const el = document.getElementById("pagefind-search");
+      if (!el || el.dataset.ready) return;
+      const base = el.dataset.base || "/";
+      const note =
+        '<p class="search-note">Search works only in a production build (<code>npm run build</code> → <code>npm run preview</code>).</p>';
+
+      const start = () => {
+        const PFUI = (window as any).PagefindUI;
+        if (!PFUI) { el.innerHTML = note; return; }
+        el.dataset.ready = "1";
+        new PFUI({
+          element: "#pagefind-search",
+          baseUrl: base,
+          showSubResults: true,
+          showImages: false,
+          translations: {
+            placeholder: "Search posts",
+            zero_results: "No results for ‘[SEARCH_TERM]’",
+          },
+        });
+      };
+
+      if ((window as any).PagefindUI) { start(); return; }
+
+      if (!document.getElementById("pagefind-ui-css")) {
+        const link = document.createElement("link");
+        link.id = "pagefind-ui-css";
+        link.rel = "stylesheet";
+        link.href = base + "pagefind/pagefind-ui.css";
+        document.head.appendChild(link);
+      }
+      const s = document.createElement("script");
+      s.src = base + "pagefind/pagefind-ui.js";
+      s.onload = start;
+      s.onerror = () => { el.innerHTML = note; };
+      document.body.appendChild(s);
+    }
+    document.addEventListener("astro:page-load", initSearch);
+  </script>
+</Base>

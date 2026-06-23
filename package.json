@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && pagefind --site dist",
     "preview": "astro preview",
     "astro": "astro",
     "sync": "node sync.mjs",
@@ -15,5 +15,8 @@
   },
   "dependencies": {
     "astro": "^6.4.7"
+  },
+  "devDependencies": {
+    "pagefind": "^1.5.2"
   }
 }

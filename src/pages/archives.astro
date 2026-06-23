@@ -1,0 +1,37 @@
+---
+import { getCollection, type CollectionEntry } from "astro:content";
+import Base from "../layouts/Base.astro";
+
+const base = import.meta.env.BASE_URL;
+const posts = (await getCollection("posts")).sort(
+  (a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0)
+);
+
+const byYear = new Map<number, CollectionEntry<"posts">[]>();
+for (const p of posts) {
+  const y = p.data.date ? p.data.date.getFullYear() : 0;
+  if (!byYear.has(y)) byYear.set(y, []);
+  byYear.get(y)!.push(p);
+}
+const years = [...byYear.keys()].sort((a, b) => b - a);
+const md = (d?: Date) =>
+  d ? `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}` : "--.--";
+---
+<Base title="Archives" description="Posts by year">
+  <div class="page-head">
+    <h1>Archives</h1>
+  </div>
+  {years.map((y) => (
+    <section class="archive-year">
+      <h2>{y || "Undated"}</h2>
+      <ul class="archive-list">
+        {byYear.get(y)!.map((p) => (
+          <li>
+            <time>{md(p.data.date)}</time>
+            <a href={`${base}posts/${p.id}`}>{p.data.title}</a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ))}
+</Base>

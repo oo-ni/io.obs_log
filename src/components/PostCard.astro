@@ -1,13 +1,13 @@
 ---
 import type { CollectionEntry } from "astro:content";
-interface Props { post: CollectionEntry<"posts">; }
-const { post } = Astro.props;
+interface Props { post: CollectionEntry<"posts">; index?: number; }
+const { post, index = 0 } = Astro.props;
 
 const base = import.meta.env.BASE_URL;
 const fmt = (d?: Date) => (d ? d.toISOString().slice(0, 10).replace(/-/g, ".") : "");
 const slug = (t: string) => t.toLowerCase().replace(/\s+/g, "-");
 ---
-<article class="card">
+<article class="card" style={`--i:${index}`}>
   {post.data.category && (
     <a class="card-cat" href={`${base}categories/${slug(post.data.category)}`}>
       {post.data.category}

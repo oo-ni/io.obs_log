@@ -17,9 +17,8 @@ const { name, posts } = Astro.props;
 <Base title={name}>
   <div class="page-head">
     <h1>{name}</h1>
-    <span class="page-count">{posts.length} posts</span>
   </div>
   <div class="card-grid">
-    {posts.map((p) => <PostCard post={p} />)}
+    {posts.map((p, i) => <PostCard post={p} index={i} />)}
   </div>
 </Base>

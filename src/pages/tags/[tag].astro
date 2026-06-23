@@ -24,10 +24,9 @@ const base = import.meta.env.BASE_URL;
 <Base title={`#${name}`}>
   <div class="page-head">
     <h1>#{name}</h1>
-    <span class="page-count">{posts.length} posts</span>
   </div>
   <div class="card-grid">
-    {posts.map((p) => <PostCard post={p} />)}
+    {posts.map((p, i) => <PostCard post={p} index={i} />)}
   </div>
-  <p style="margin-top:2rem"><a class="back-link" href={`${base}tags`}>← 모든 태그</a></p>
+  <p style="margin-top:2rem"><a class="back-link" href={`${base}tags`}>← All tags</a></p>
 </Base>
