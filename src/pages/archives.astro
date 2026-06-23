@@ -2,36 +2,51 @@
 import { getCollection, type CollectionEntry } from "astro:content";
 import Base from "../layouts/Base.astro";
 
+type Post = CollectionEntry<"posts">;
 const base = import.meta.env.BASE_URL;
 const posts = (await getCollection("posts")).sort(
   (a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0)
 );
 
-const byYear = new Map<number, CollectionEntry<"posts">[]>();
+// 연도 → 월 → 글
+const byYear = new Map<number, Map<number, Post[]>>();
 for (const p of posts) {
-  const y = p.data.date ? p.data.date.getFullYear() : 0;
-  if (!byYear.has(y)) byYear.set(y, []);
-  byYear.get(y)!.push(p);
+  const d = p.data.date;
+  const y = d ? d.getFullYear() : 0;
+  const m = d ? d.getMonth() : -1;
+  if (!byYear.has(y)) byYear.set(y, new Map());
+  const months = byYear.get(y)!;
+  if (!months.has(m)) months.set(m, []);
+  months.get(m)!.push(p);
 }
 const years = [...byYear.keys()].sort((a, b) => b - a);
+const monthsOf = (y: number) => [...byYear.get(y)!.keys()].sort((a, b) => b - a);
+const monthName = (m: number) =>
+  m < 0 ? "Undated" : new Date(2000, m, 1).toLocaleString("en-US", { month: "long" });
 const md = (d?: Date) =>
-  d ? `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}` : "--.--";
+  d ? `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}` : "";
 ---
 <Base title="Archives" description="Posts by year">
   <div class="page-head">
     <h1>Archives</h1>
   </div>
+  <p class="page-desc">All the articles I've archived.</p>
   {years.map((y) => (
     <section class="archive-year">
       <h2>{y || "Undated"}</h2>
-      <ul class="archive-list">
-        {byYear.get(y)!.map((p) => (
-          <li>
-            <time>{md(p.data.date)}</time>
-            <a href={`${base}posts/${p.id}`}>{p.data.title}</a>
-          </li>
-        ))}
-      </ul>
+      {monthsOf(y).map((m) => (
+        <div class="archive-month">
+          <h3>{monthName(m)}</h3>
+          <ul class="archive-list">
+            {byYear.get(y)!.get(m)!.map((p) => (
+              <li>
+                <a href={`${base}posts/${p.id}`}>{p.data.title}</a>
+                <time>{md(p.data.date)}</time>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </section>
   ))}
 </Base>
