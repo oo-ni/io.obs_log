@@ -1,5 +1,5 @@
 ---
-title: "함수의 색"
+title: "What color is your function?"
 date: 2026-06-17
 tags: ["Async"]
 category: "Computer Science/Programming Language"
@@ -62,5 +62,5 @@ JS와 비슷한 가상의 언어를 상상한다. 그런데, 괴상한 규칙이
 
 결론은 굳이 쓸데없는 비동기 라이브러리를 사용해서 async/sync 색을 나누고 함수 간 전염을 만들지 말고, 언어 모델링 레벨에서 스레드 코루틴 or 버추얼 스레드를 적용하는 방식으로 콜스택을 보존하여 이러한 함수의 색을 없애자는 것이다.
 
-# Reference
+## Reference
 [Bob Nystrom - What Color is your function](http://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/)
