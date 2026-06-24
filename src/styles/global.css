@@ -105,7 +105,17 @@ html[data-theme="dark"] .theme-toggle .sun { display: block; }
 
 @media (max-width: 640px) {
   .menu-btn { display: inline-flex; }
-  .site-nav { display: none; flex-basis: 100%; flex-direction: column; align-items: stretch; gap: .5rem; padding-bottom: .75rem; }
+  .header-inner { position: relative; flex-wrap: nowrap; } /* 상단 바는 항상 64px 한 줄 */
+  /* 펼친 메뉴는 헤더 아래로 떨어지는 드롭다운(오버레이) — 헤더 높이를 늘리지 않음 */
+  .site-nav {
+    display: none;
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: .5rem;
+    margin: 0; padding: .5rem 1rem .75rem;
+    background: var(--background);
+    border-bottom: 1px solid var(--border);
+    max-height: calc(100svh - 64px); overflow-y: auto;
+  }
   .site-nav.open { display: flex; }
   .nav-links { flex-direction: column; align-items: stretch; gap: .25rem; width: 100%; }
   .nav-links a { display: block; padding: .5rem .25rem; }

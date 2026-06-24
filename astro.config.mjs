@@ -3,6 +3,7 @@ import { defineConfig, fontProviders } from 'astro/config';
 
 // https://astro.build/config
 export default defineConfig({
+  site: "https://ondl.site",
   markdown: { syntaxHighlight: false },
   // Font 자체 호스팅
   fonts: [

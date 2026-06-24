@@ -1,0 +1,51 @@
+name: Sync from Obsidian Vault
+
+#  - repository_dispatch(vault-updated): Vault repo가 push될 때 보내는 신호
+#  - workflow_dispatch: Actions 탭에서 수동 실행(test)
+on:
+  repository_dispatch:
+    types: [vault-updated]
+  workflow_dispatch:
+
+# 같은 시각 중복 실행 방지
+concurrency:
+  group: vault-sync
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout blog repo
+        uses: actions/checkout@v4
+
+      - name: Checkout Obsidian Vault
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.VAULT_REPO }}
+          token: ${{ secrets.VAULT_TOKEN }}
+          path: .vault
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Sync vault → content
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node sync.mjs "$GITHUB_WORKSPACE/.vault"
+
+      - name: Commit & push if changed
+        run: |
+          git config user.name "vault-sync[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src/content/posts public/attachments .summary-cache.json
+          if git diff --quiet --cached; then
+            echo "변경 없음 — 커밋 건너뜀"
+          else
+            git commit -m "content: sync from Obsidian Vault"
+            git push
+          fi

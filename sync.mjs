@@ -6,18 +6,62 @@
  *     ![[img.png]]      → ![](/attachments/img.png)  (+ public/attachments 로 복사)
  *     [[Note|alias]]    → [alias](/posts/slug)        (발행된 글이면 링크, 아니면 텍스트)
  * - frontmatter 정규화: title / date / tags / category / description
+ * - description: 수동 값 우선, 없으면 LLM(Claude Haiku) 요약 → 본문 앞부분 폴백.
+ *   LLM 요약은 ANTHROPIC_API_KEY 환경변수가 있을 때만 동작하고,
+ *   본문 해시 기준으로 .summary-cache.json 에 캐시(안 바뀐 글은 재호출 안 함).
  *
- * 사용: node sync.mjs   (Vault 경로 변경: node sync.mjs "/경로")
+ * 사용: node sync.mjs
+ *   Vault 경로: 인자 > OBSIDIAN_VAULT 환경변수 > ~/Obsidian Vault
+ *     node sync.mjs "/경로"   또는   OBSIDIAN_VAULT="/경로" node sync.mjs
+ *   AI 요약: ANTHROPIC_API_KEY=... node sync.mjs
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
 
-const VAULT = process.argv[2] || "/Users/geonoo/Obsidian Vault";
+// Vault 경로: CLI 인자 > OBSIDIAN_VAULT 환경변수 > 홈 디렉터리의 "Obsidian Vault"
+const VAULT =
+  process.argv[2] || process.env.OBSIDIAN_VAULT || path.join(os.homedir(), "Obsidian Vault");
 const ROOT = process.cwd();
 const POSTS_DIR = path.join(ROOT, "src/content/posts");
 const ATTACH_DIR = path.join(ROOT, "public/attachments");
+const CACHE_FILE = path.join(ROOT, ".summary-cache.json");
 const SKIP_DIRS = new Set([".git", ".obsidian", "_templates", "node_modules"]);
 const IMG_EXT = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
+
+// LLM 요약 (Claude Haiku). ANTHROPIC_API_KEY 없으면 비활성 → 본문 앞부분 폴백.
+const AI_MODEL = "claude-haiku-4-5";
+const hash = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
+
+async function llmSummarize(text) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return null;
+  const prompt =
+    "다음 블로그 글을 한국어로 2문장 이내로 요약해줘. 핵심만 간결하게, 군더더기·머리말 없이. " +
+    "글에 없는 내용은 절대 지어내지 말 것. 요약문만 출력:\n\n---\n" +
+    text.slice(0, 12000);
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        max_tokens: 256,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) { console.warn(`   ⚠️ 요약 실패(HTTP ${res.status})`); return null; }
+    const data = await res.json();
+    const out = (data.content || [])
+      .filter((b) => b.type === "text").map((b) => b.text).join("").trim();
+    return out || null;
+  } catch (e) { console.warn(`   ⚠️ 요약 오류: ${e.message}`); return null; }
+}
 
 async function walk(dir, acc = []) {
   for (const e of await fs.readdir(dir, { withFileTypes: true })) {
@@ -75,6 +119,23 @@ async function main() {
   await rmrf(POSTS_DIR); await fs.mkdir(POSTS_DIR, { recursive: true });
   await rmrf(ATTACH_DIR); await fs.mkdir(ATTACH_DIR, { recursive: true });
 
+  // 요약 캐시 로드 (본문 해시 → 요약). 안 바뀐 글은 LLM 재호출 안 함.
+  let cache = {};
+  try { cache = JSON.parse(await fs.readFile(CACHE_FILE, "utf8")); } catch {}
+  let aiCount = 0;
+
+  // 본문 앞부분에서 description 폴백 생성
+  const fallbackDesc = (body) =>
+    body
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/<[^>]+>/g, "")
+      .replace(/[#>*_`~|-]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 130);
+
   const usedAttachments = new Set();
 
   for (const p of published) {
@@ -105,17 +166,17 @@ async function main() {
     const stack = parseList(p.fm, "stack");
     const category =
       field(p.fm, "category") || [domain, stack[0]].filter(Boolean).join("/");
+    // description: 수동 우선 → LLM 요약(해시 캐시) → 본문 앞부분 폴백
     let description = field(p.fm, "description") || "";
     if (!description) {
-      const plain = body
-        .replace(/```[\s\S]*?```/g, "")
-        .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-        .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-        .replace(/<[^>]+>/g, "")
-        .replace(/[#>*_`~|-]/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
-      description = plain.slice(0, 130);
+      const h = hash(body);
+      if (cache[h]) {
+        description = cache[h];
+      } else {
+        const ai = await llmSummarize(body);
+        if (ai) { cache[h] = ai; aiCount++; description = ai; }
+        else description = fallbackDesc(body);
+      }
     }
     const fmOut =
       `---\n` +
@@ -136,9 +197,12 @@ async function main() {
     if (src) { await fs.copyFile(src, path.join(ATTACH_DIR, name)); copied++; }
   }
 
+  // 요약 캐시 저장
+  await fs.writeFile(CACHE_FILE, JSON.stringify(cache, null, 2), "utf8");
+
   console.log(`\n✅ 동기화 완료`);
   published.forEach((p) => console.log(`   - ${p.title}  →  /posts/${p.slug}`));
-  console.log(`   글 ${published.length}개 · 첨부 ${copied}개\n`);
+  console.log(`   글 ${published.length}개 · 첨부 ${copied}개 · AI 요약 ${aiCount}개 생성\n`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
