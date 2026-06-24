@@ -58,7 +58,7 @@ published to this static site through a sync script.
 
 ```
 io.obs_log/
-├── astro.config.mjs   # Astro config (self-hosted fonts, syntax highlight off)
+├── astro.config.mjs   # Astro config (self-hosted fonts, Shiki syntax highlighting)
 ├── sync.mjs           # Obsidian → src/content sync script
 ├── src/
 │   ├── content/       # synced posts + collection schema (do NOT edit directly)
@@ -216,7 +216,7 @@ Design intent: **serif for comfortable reading in body text, sans (Pretendard) f
 | `--muted` | `#e6e6e6` | `#343f60` | Secondary background (code/chips) |
 | `--muted-foreground` | `#6b7280` | `#afb9ca` | Secondary text (dates, descriptions) |
 | `--border` | `#ece9e9` | `#ab4b08` | Borders, dividers |
-| `--code` | `#c7254e` | `#ff7b72` | Code text (reddish) |
+| `--code` | `#c7254e` | `#ff7b72` | Inline code text (reddish); fenced blocks use Shiki |
 
 The theme is switched via the `<html data-theme="light|dark">` attribute, and re-applied from `localStorage` before first paint and on every page transition (`astro:after-swap`) to prevent flashing.
 
@@ -225,7 +225,7 @@ The theme is switched via the `<html data-theme="light|dark">` attribute, and re
 - **Layout widths** — `--maxw: 64rem` (sidebar layout), `--maxw-prose: 48rem` (reading), `--sidebar-w: 15rem`
 - **Body spacing** — post detail (`.prose`) reproduces Obsidian reading-view spacing (paragraph `line-height: 2.0`, heading top margins, etc.)
 - **Link underlines** — active nav uses a wavy underline; in-body links use a dashed underline
-- **Syntax highlighting** — disabled (`syntaxHighlight: false`); code is shown in the single `--code` color
+- **Syntax highlighting** — fenced code blocks use Shiki with a light/dark dual theme (`github-light` / `github-dark`), so each language is highlighted per-token; inline `` `code` `` stays a single `--code` color
 
 ---
 

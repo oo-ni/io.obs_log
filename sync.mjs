@@ -35,7 +35,7 @@ const AI_MODEL = "claude-haiku-4-5";
 const hash = (s) => crypto.createHash("sha256").update(s).digest("hex").slice(0, 16);
 
 async function llmSummarize(text) {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = (process.env.ANTHROPIC_API_KEY || "").trim();
   if (!key) return null;
   const prompt =
     "다음 블로그 글을 한국어로 2문장 이내로 요약해줘. 핵심만 간결하게, 군더더기·머리말 없이. " +
@@ -55,7 +55,11 @@ async function llmSummarize(text) {
         messages: [{ role: "user", content: prompt }],
       }),
     });
-    if (!res.ok) { console.warn(`   ⚠️ 요약 실패(HTTP ${res.status})`); return null; }
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.warn(`   ⚠️ 요약 실패(HTTP ${res.status}): ${errText.slice(0, 300)}`);
+      return null;
+    }
     const data = await res.json();
     const out = (data.content || [])
       .filter((b) => b.type === "text").map((b) => b.text).join("").trim();
@@ -95,6 +99,56 @@ const slugify = (name) =>
     .replace(/-+/g, "-");
 
 const yamlList = (arr) => "[" + arr.map((t) => JSON.stringify(t)).join(", ") + "]";
+
+const escapeHtml = (s) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// 옵시디언 콜아웃 타입 → 아이콘(노션풍). 미정의 타입은 note로 폴백.
+const CALLOUT_ICONS = {
+  note: "🗒️", abstract: "📋", summary: "📋", tldr: "📋",
+  info: "ℹ️", todo: "✅", tip: "💡", hint: "💡", important: "💡",
+  success: "✅", check: "✅", done: "✅",
+  question: "❓", help: "❓", faq: "❓",
+  warning: "⚠️", caution: "⚠️", attention: "⚠️",
+  failure: "❌", fail: "❌", missing: "❌",
+  danger: "🚫", error: "🚫", bug: "🐛",
+  example: "📑", quote: "💬", cite: "💬",
+};
+
+/**
+ * 옵시디언 콜아웃(`> [!type]+ 제목` + `> 본문...`)을
+ * 노션풍 콜아웃 HTML(제목/본문)로 변환.
+ * 본문은 앞뒤 빈 줄로 감싸 HTML 블록 안에서도 마크다운이 렌더되게 한다.
+ */
+function transformCallouts(md) {
+  const lines = md.split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const head = lines[i].match(/^>\s*\[!(\w+)\]([+-]?)\s*(.*)$/);
+    if (!head) { out.push(lines[i]); continue; }
+    const type = head[1].toLowerCase();
+    const title = head[3].trim() || (type.charAt(0).toUpperCase() + type.slice(1));
+    // 이어지는 인용 라인(`>`)을 본문으로 수집
+    const bodyLines = [];
+    let j = i + 1;
+    for (; j < lines.length && /^>/.test(lines[j]); j++) {
+      bodyLines.push(lines[j].replace(/^>\s?/, ""));
+    }
+    i = j - 1;
+    const icon = CALLOUT_ICONS[type] || CALLOUT_ICONS.note;
+    if (out.length && out[out.length - 1].trim() !== "") out.push("");
+    out.push(`<div class="callout-box" data-callout="${type}">`);
+    out.push(`<div class="callout-box-title"><span class="callout-box-icon">${icon}</span>${escapeHtml(title)}</div>`);
+    if (bodyLines.some((l) => l.trim() !== "")) {
+      out.push("");
+      out.push(...bodyLines);
+      out.push("");
+    }
+    out.push(`</div>`);
+    out.push("");
+  }
+  return out.join("\n");
+}
 
 async function rmrf(p) { await fs.rm(p, { recursive: true, force: true }); }
 
@@ -141,6 +195,10 @@ async function main() {
   for (const p of published) {
     let body = bodyOf(p.text);
 
+    // 펜스 코드블록 언어 식별자 소문자화 (```Kotlin → ```kotlin).
+    // Shiki 언어 ID는 소문자라 대문자면 plaintext로 떨어진다.
+    body = body.replace(/^(\s*`{3,}|\s*~{3,})([A-Za-z][\w+#-]*)/gm, (m, fence, lang) => fence + lang.toLowerCase());
+
     // 2-1) 이미지 임베드 ![[img.ext|size]] → ![](/attachments/img.ext)
     body = body.replace(/!\[\[([^\]|#]+?)(?:\|[^\]]*)?\]\]/g, (m, target) => {
       const name = path.basename(target.trim());
@@ -156,6 +214,9 @@ async function main() {
       return slug ? `[${display}](/posts/${slug})` : display;
     });
 
+    // 2-3) 옵시디언 콜아웃 → 노션풍 콜아웃 HTML
+    body = transformCallouts(body);
+
     // 3) frontmatter 정규화
     const created = field(p.fm, "created") || "";
     const date = (created.match(/\d{4}-\d{2}-\d{2}/) || [""])[0];
@@ -167,15 +228,19 @@ async function main() {
     const category =
       field(p.fm, "category") || [domain, stack[0]].filter(Boolean).join("/");
     // description: 수동 우선 → LLM 요약(해시 캐시) → 본문 앞부분 폴백
+    // showSummary: 콜아웃으로 노출할 "진짜 요약"인지(수동/AI=true, 폴백=false)
+    // aiSummary:   그 요약이 LLM 생성인지(콜아웃 라벨 "AI Summary" 구분용)
     let description = field(p.fm, "description") || "";
+    let showSummary = !!description; // 수동 작성 description 이면 콜아웃 노출
+    let aiSummary = false;
     if (!description) {
       const h = hash(body);
       if (cache[h]) {
-        description = cache[h];
+        description = cache[h]; aiSummary = true; showSummary = true;
       } else {
         const ai = await llmSummarize(body);
-        if (ai) { cache[h] = ai; aiCount++; description = ai; }
-        else description = fallbackDesc(body);
+        if (ai) { cache[h] = ai; aiCount++; description = ai; aiSummary = true; showSummary = true; }
+        else description = fallbackDesc(body); // 폴백은 메타용일 뿐, 콜아웃 X
       }
     }
     const fmOut =
@@ -185,6 +250,8 @@ async function main() {
       `tags: ${yamlList(tags)}\n` +
       (category ? `category: ${JSON.stringify(category)}\n` : "") +
       (description ? `description: ${JSON.stringify(description)}\n` : "") +
+      (showSummary ? `showSummary: true\n` : "") +
+      (aiSummary ? `aiSummary: true\n` : "") +
       `---\n\n`;
 
     await fs.writeFile(path.join(POSTS_DIR, `${p.slug}.md`), fmOut + body.trimStart(), "utf8");

@@ -53,4 +53,6 @@ All tokens are CSS variables. Three fonts, applied by role (don't change the bod
 - `--font-serif` **Noto Serif KR** — the `body` default (post body, card excerpts).
 - `--font-sans` **Pretendard** — page/post/card titles, headings, Categories, archive, footer.
 
-Other notes: colors are AstroPaper light/dark tokens switched via `<html data-theme="light|dark">`; syntax highlighting is **disabled** (`markdown.syntaxHighlight: false`) so code renders in the single `--code` color; in-body links use a dashed underline, active nav uses a wavy one; `-webkit-font-smoothing` is intentionally left at default.
+Other notes: colors are AstroPaper light/dark tokens switched via `<html data-theme="light|dark">`; fenced code blocks use **Shiki** with a light/dark dual theme (`markdown.shikiConfig.themes` = `github-light`/`github-dark`) — `pre.astro-code` carries inline `--shiki-light`/`--shiki-dark` token vars and `global.css` flips to the dark vars under `html[data-theme="dark"]`, while inline `` `code` `` stays the single `--code` color; in-body links use a dashed underline, active nav uses a wavy one; `-webkit-font-smoothing` is intentionally left at default.
+
+A post's `description` is rendered as a **callout** at the top of the post body when `showSummary: true` (set by `sync.mjs` for manual or AI summaries, but **not** for the body-opening fallback). The label reads "AI Summary" when `aiSummary: true`, otherwise "Summary".
