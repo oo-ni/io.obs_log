@@ -8,7 +8,7 @@ interface Props { title: string; description?: string; sidebar?: boolean; image?
 const { title, description = "Notes on interests", sidebar = true, image } = Astro.props;
 const base = import.meta.env.BASE_URL;
 // 링크 미리보기(Open Graph)용 절대 URL
-const siteName = "oo-ni.dev_log";
+const siteName = "🥑";
 const ogImage = new URL(image ?? `${base}og-image.png`, Astro.site).href;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const path = Astro.url.pathname;
