@@ -8,6 +8,8 @@ const base = import.meta.env.BASE_URL;
 
   <script>
     // View Transitions 대응: 매 페이지 로드마다 검색 UI를 초기화한다.
+    // CSS link는 ClientRouter가 head를 재조정하며 제거할 수 있으므로,
+    // 매번 존재를 보장하고 "CSS 로드 완료 + JS 로드 완료" 후에만 렌더한다(FOUC 방지).
     function initSearch() {
       const el = document.getElementById("pagefind-search");
       if (!el || el.dataset.ready) return;
@@ -15,7 +17,11 @@ const base = import.meta.env.BASE_URL;
       const note =
         '<p class="search-note">Search works only in a production build (<code>npm run build</code> → <code>npm run preview</code>).</p>';
 
-      const start = () => {
+      let cssReady = false;
+      let jsReady = !!(window as any).PagefindUI;
+
+      const render = () => {
+        if (el.dataset.ready || !cssReady || !jsReady) return;
         const PFUI = (window as any).PagefindUI;
         if (!PFUI) { el.innerHTML = note; return; }
         el.dataset.ready = "1";
@@ -31,20 +37,30 @@ const base = import.meta.env.BASE_URL;
         });
       };
 
-      if ((window as any).PagefindUI) { start(); return; }
-
-      if (!document.getElementById("pagefind-ui-css")) {
+      // 1) CSS: 없으면 추가하고 load 후 렌더. 이미 있으면 로드된 것으로 간주.
+      const existing = document.getElementById("pagefind-ui-css") as HTMLLinkElement | null;
+      if (existing) {
+        cssReady = true;
+      } else {
         const link = document.createElement("link");
         link.id = "pagefind-ui-css";
         link.rel = "stylesheet";
         link.href = base + "pagefind/pagefind-ui.css";
+        link.addEventListener("load", () => { cssReady = true; render(); });
+        link.addEventListener("error", () => { el.innerHTML = note; });
         document.head.appendChild(link);
       }
-      const s = document.createElement("script");
-      s.src = base + "pagefind/pagefind-ui.js";
-      s.onload = start;
-      s.onerror = () => { el.innerHTML = note; };
-      document.body.appendChild(s);
+
+      // 2) JS: 한 번만 로드(window.PagefindUI는 soft-nav에도 유지됨).
+      if (!jsReady) {
+        const s = document.createElement("script");
+        s.src = base + "pagefind/pagefind-ui.js";
+        s.onload = () => { jsReady = true; render(); };
+        s.onerror = () => { el.innerHTML = note; };
+        document.body.appendChild(s);
+      }
+
+      render();
     }
     document.addEventListener("astro:page-load", initSearch);
   </script>
