@@ -1,66 +1,68 @@
 ---
-interface Props { title?: string }
-const { title = "" } = Astro.props;
-
-const host = "https://cusdis.com";
-const appId = "d74e0dc5-60ed-4ca5-ae02-7b5a5178c82c";
-const pageId = Astro.url.pathname;     // 글마다 고유 (경로 기준)
-const pageUrl = Astro.url.href;
+const repo = "oo-ni/io.obs_log";
+const repoId = "R_kgDOTBij5g";
+const category = "General";
+const categoryId = "DIC_kwDOTBij5s4C_tuc";
 ---
-<section class="comments" data-pagefind-ignore>
-  <div
-    id="cusdis_thread"
-    data-host={host}
-    data-app-id={appId}
-    data-page-id={pageId}
-    data-page-url={pageUrl}
-    data-page-title={title}
-  >
-  </div>
+<section
+  class="comments"
+  id="giscus-comments"
+  data-pagefind-ignore
+  data-repo={repo}
+  data-repo-id={repoId}
+  data-category={category}
+  data-category-id={categoryId}
+>
 </section>
 
 <script>
-  const curTheme = () =>
+  const giscusTheme = () =>
     document.documentElement.dataset.theme === "dark" ? "dark" : "light";
 
-  function loadCusdis() {
-    const el = document.getElementById("cusdis_thread");
-    if (!el) return; // 댓글 영역 없는 페이지
+  function loadGiscus() {
+    const el = document.getElementById("giscus-comments");
+    if (!el) return; // 댓글 영역이 없는 페이지
 
-    if ((el.dataset.appId || "").startsWith("REPLACE")) {
+    if ((el.dataset.repoId || "").startsWith("REPLACE")) {
       el.innerHTML =
-        '<p class="comments-note">댓글이 아직 설정되지 않았습니다. <code>src/components/Comments.astro</code>에 Cusdis App ID를 입력하세요.</p>';
+        '<p class="comments-note">댓글이 아직 설정되지 않았습니다. <code>src/components/Comments.astro</code>에 giscus 저장소 정보를 입력하세요.</p>';
       return;
     }
 
-    el.setAttribute("data-theme", curTheme()); // 초기 테마
-    const render = () => (window as any).CUSDIS?.initial?.();
-
-    if ((window as any).CUSDIS) {
-      render(); // 스크립트는 이미 로드됨 (뷰 트랜지션 재진입)
-      return;
-    }
+    el.innerHTML = ""; // 뷰 트랜지션으로 다시 들어올 때 이전 iframe 제거
     const s = document.createElement("script");
-    s.src = "https://cusdis.com/js/cusdis.es.js";
+    s.src = "https://giscus.app/client.js";
     s.async = true;
-    s.onload = render;
-    document.body.appendChild(s);
+    s.crossOrigin = "anonymous";
+    const attrs: Record<string, string> = {
+      "data-repo": el.dataset.repo!,
+      "data-repo-id": el.dataset.repoId!,
+      "data-category": el.dataset.category!,
+      "data-category-id": el.dataset.categoryId!,
+      "data-mapping": "pathname",
+      "data-strict": "1",
+      "data-reactions-enabled": "1",
+      "data-emit-metadata": "0",
+      "data-input-position": "top",
+      "data-theme": giscusTheme(),
+      "data-lang": "en",
+      "data-loading": "lazy",
+    };
+    for (const [k, v] of Object.entries(attrs)) s.setAttribute(k, v);
+    el.appendChild(s);
   }
 
-  document.addEventListener("astro:page-load", loadCusdis);
+  document.addEventListener("astro:page-load", loadGiscus);
 
-  // 테마 토글 시 Cusdis iframe 에도 반영
-  const syncTheme = () => {
-    const el = document.getElementById("cusdis_thread");
-    if (!el) return;
-    el.setAttribute("data-theme", curTheme());
-    const iframe = document.querySelector<HTMLIFrameElement>("#cusdis_thread iframe");
+  // 테마 토글 시 giscus iframe 에도 반영
+  const sendTheme = () => {
+    const iframe = document.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
     iframe?.contentWindow?.postMessage(
-      { from: "cusdis", event: "setTheme", data: curTheme() },
-      "*"
+      { giscus: { setConfig: { theme: giscusTheme() } } },
+      "https://giscus.app"
     );
   };
-  new MutationObserver(syncTheme).observe(document.documentElement, {
+  new MutationObserver(sendTheme).observe(document.documentElement, {
     attributes: true,
     attributeFilter: ["data-theme"],
   });

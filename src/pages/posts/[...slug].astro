@@ -4,11 +4,17 @@ import Base from "../../layouts/Base.astro";
 import Comments from "../../components/Comments.astro";
 
 export async function getStaticPaths() {
-  const posts = await getCollection("posts");
-  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+  // 최신순 정렬 → i-1이 더 최신(다음 글), i+1이 더 오래된(이전 글)
+  const posts = (await getCollection("posts")).sort(
+    (a, b) => (b.data.date?.valueOf() ?? 0) - (a.data.date?.valueOf() ?? 0)
+  );
+  return posts.map((post, i) => ({
+    params: { slug: post.id },
+    props: { post, prev: posts[i + 1] ?? null, next: posts[i - 1] ?? null },
+  }));
 }
 
-const { post } = Astro.props;
+const { post, prev, next } = Astro.props;
 const { Content } = await render(post);
 const fmt = (d?: Date) => (d ? d.toISOString().slice(0, 10).replace(/-/g, ".") : "");
 const base = import.meta.env.BASE_URL;
@@ -30,6 +36,22 @@ const base = import.meta.env.BASE_URL;
     )}
     <Content />
   </article>
-  <Comments title={post.data.title} />
+  {(prev || next) && (
+    <nav class="post-nav" data-pagefind-ignore>
+      {prev ? (
+        <a class="post-nav-item prev" href={`${base}posts/${prev.id}`}>
+          <span class="post-nav-dir">← 이전 글</span>
+          <span class="post-nav-title">{prev.data.title}</span>
+        </a>
+      ) : <span class="post-nav-item empty" />}
+      {next ? (
+        <a class="post-nav-item next" href={`${base}posts/${next.id}`}>
+          <span class="post-nav-dir">다음 글 →</span>
+          <span class="post-nav-title">{next.data.title}</span>
+        </a>
+      ) : <span class="post-nav-item empty" />}
+    </nav>
+  )}
+  <Comments />
   <p style="margin-top:2.5rem"><a class="back-link" href={base}>← Go Back</a></p>
 </Base>
