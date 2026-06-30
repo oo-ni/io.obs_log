@@ -52,6 +52,6 @@ const base = import.meta.env.BASE_URL;
       ) : <span class="post-nav-item empty" />}
     </nav>
   )}
-  <Comments />
+  <Comments slug={post.id} />
   <p style="margin-top:2.5rem"><a class="back-link" href={base}>← Go Back</a></p>
 </Base>
