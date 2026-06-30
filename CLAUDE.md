@@ -35,7 +35,7 @@ npx astro check  # type-check .astro / .ts (no separate lint or test setup exist
 - **Hierarchical categories** ([src/lib/categories.ts](src/lib/categories.ts)): `buildTree()` parses each post's `category` string (split on `/`) into a nested tree where a parent's count includes its children; `allCategoryPaths()` enumerates every node (parent and leaf) with its subtree's posts. Rendered recursively by [CategoryTree.astro](src/components/CategoryTree.astro) via `Astro.self`, and routed by `pages/categories/[...category].astro` (rest param → multi-segment paths).
 - **Pages**: `/` is a landing page (intro + recent posts), `/posts` is the full list. `[...slug].astro` is post detail; tags and `archives` (year/month) are derived from the collection. Content schema is in [src/content.config.ts](src/content.config.ts).
 - **Search**: Pagefind. The build command appends `pagefind --site dist`. Only post bodies are indexed — `data-pagefind-body` is on the post `<article>`, and `data-pagefind-ignore` is on the header, sidebar, and footer.
-- **Comments**: Cusdis ([src/components/Comments.astro](src/components/Comments.astro)) — set `appId` there.
+- **Comments**: Giscus ([src/components/Comments.astro](src/components/Comments.astro)) — GitHub Discussions backed; `repo`/`repoId`/`category`/`categoryId` set there, `pathname` mapping, theme synced to `data-theme`.
 
 ### View Transitions gotcha (important)
 

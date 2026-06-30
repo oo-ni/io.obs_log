@@ -48,7 +48,7 @@ published to this static site through a sync script.
 | Content | Astro Content Collections (`glob` loader + Zod schema) |
 | Sync | Node.js script (`sync.mjs`) — no external dependencies |
 | Search | [Pagefind](https://pagefind.app) (static index) |
-| Comments | [Cusdis](https://cusdis.com) (no account required) |
+| Comments | [Giscus](https://giscus.app) (GitHub Discussions) |
 | Fonts | Astro Fonts API (self-hosted) + Google Fonts / jsDelivr |
 | Hosting | Vercel (auto deploy via GitHub) |
 
@@ -181,7 +181,7 @@ npm run preview       # preview the build locally
 - **Hierarchical categories** — tree built from `domain/stack`, expandable in the sidebar (`src/lib/categories.ts`)
 - **Tags / Archive** — per-tag listings and a year/month archive
 - **Full-text search** — Pagefind. Only post bodies (`data-pagefind-body`) are indexed; header and sidebar are excluded
-- **Comments** — Cusdis. No account required (name + content). Set `appId` in `src/components/Comments.astro`
+- **Comments** — Giscus (GitHub Discussions). Set `repo`/`repoId`/`category`/`categoryId` in `src/components/Comments.astro`; theme follows the site's light/dark
 - **Dark mode** — `data-theme` toggle with a circular reveal transition originating from the click point (View Transitions API)
 - **Page transitions** — Astro `<ClientRouter />` plus a fade-up entrance animation
 - **Accessibility / performance** — keyboard focus outlines, `prefers-reduced-motion` support, font preloading

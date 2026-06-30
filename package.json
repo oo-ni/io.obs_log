@@ -14,6 +14,7 @@
     "post": "node sync.mjs && git add -A && git commit -m \"content: update posts\" && git push"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "astro": "^6.4.7"
   },
   "devDependencies": {

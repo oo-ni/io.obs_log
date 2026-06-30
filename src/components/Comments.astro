@@ -1,67 +1,504 @@
 ---
-interface Props { title?: string }
-const { title = "" } = Astro.props;
-
-const host = "https://cusdis.com";
-const appId = "d74e0dc5-60ed-4ca5-ae02-7b5a5178c82c";
-const pageId = Astro.url.pathname;     // 글마다 고유 (경로 기준)
-const pageUrl = Astro.url.href;
+// 자체 댓글 시스템 (Supabase). 글 식별자는 slug(post.id)
+interface Props {
+  slug: string;
+}
+const { slug } = Astro.props;
 ---
-<section class="comments" data-pagefind-ignore>
-  <div
-    id="cusdis_thread"
-    data-host={host}
-    data-app-id={appId}
-    data-page-id={pageId}
-    data-page-url={pageUrl}
-    data-page-title={title}
-  >
+<section class="comments" data-pagefind-ignore data-slug={slug}>
+  <h2 class="comments-title">댓글 <span class="comments-count" data-count></span></h2>
+  <div class="comments-body" data-body>
+    <p class="comments-note" data-loading>댓글을 불러오는 중…</p>
   </div>
 </section>
 
 <script>
-  const curTheme = () =>
-    document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+  import { getSupabase, profileFrom, isSupabaseConfigured } from "../lib/supabase";
 
-  function loadCusdis() {
-    const el = document.getElementById("cusdis_thread");
-    if (!el) return; // 댓글 영역 없는 페이지
+  type Row = {
+    id: number;
+    post_slug: string;
+    parent_id: number | null;
+    user_id: string;
+    author_name: string;
+    author_avatar: string | null;
+    body: string;
+    created_at: string;
+  };
 
-    if ((el.dataset.appId || "").startsWith("REPLACE")) {
-      el.innerHTML =
-        '<p class="comments-note">댓글이 아직 설정되지 않았습니다. <code>src/components/Comments.astro</code>에 Cusdis App ID를 입력하세요.</p>';
-      return;
-    }
+  const PROVIDERS = [
+    { id: "github", label: "GitHub" },
+    { id: "google", label: "Google" },
+    // 카카오: 비즈앱 전환 완료 → 이메일까지 요청 (account_email은 필수 동의로 설정해야 함)
+    { id: "kakao", label: "Kakao", scopes: "profile_nickname profile_image account_email" },
+  ] as const;
 
-    el.setAttribute("data-theme", curTheme()); // 초기 테마
-    const render = () => (window as any).CUSDIS?.initial?.();
+  // 브랜드 로고 (신뢰된 정적 마크업 — innerHTML로 삽입해도 안전)
+  const ICONS: Record<string, string> = {
+    github:
+      '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 014 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>',
+    google:
+      '<svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 010-3.44V4.95H.96a9 9 0 000 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 00.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>',
+    kakao:
+      '<svg viewBox="0 0 18 18" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M9 1.6C4.58 1.6 1 4.4 1 7.85c0 2.2 1.46 4.13 3.66 5.25-.16.58-.58 2.1-.66 2.43-.1.4.15.4.31.29.12-.08 1.95-1.32 2.75-1.87.63.09 1.27.14 1.94.14 4.42 0 8-2.8 8-6.25S13.42 1.6 9 1.6z"/></svg>',
+  };
 
-    if ((window as any).CUSDIS) {
-      render(); // 스크립트는 이미 로드됨 (뷰 트랜지션 재진입)
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://cusdis.com/js/cusdis.es.js";
-    s.async = true;
-    s.onload = render;
-    document.body.appendChild(s);
+  function fmt(iso: string): string {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
-  document.addEventListener("astro:page-load", loadCusdis);
+  // 아바타: URL 있으면 img, 없으면 이름 첫 글자 원형
+  function avatarEl(name: string, url: string | null): HTMLElement {
+    if (url) {
+      const img = document.createElement("img");
+      img.className = "comment-avatar";
+      img.src = url;
+      img.alt = name;
+      img.loading = "lazy";
+      img.referrerPolicy = "no-referrer";
+      return img;
+    }
+    const span = document.createElement("span");
+    span.className = "comment-avatar comment-avatar-fallback";
+    span.textContent = (name[0] || "?").toUpperCase();
+    return span;
+  }
 
-  // 테마 토글 시 Cusdis iframe 에도 반영
-  const syncTheme = () => {
-    const el = document.getElementById("cusdis_thread");
-    if (!el) return;
-    el.setAttribute("data-theme", curTheme());
-    const iframe = document.querySelector<HTMLIFrameElement>("#cusdis_thread iframe");
-    iframe?.contentWindow?.postMessage(
-      { from: "cusdis", event: "setTheme", data: curTheme() },
-      "*"
-    );
-  };
-  new MutationObserver(syncTheme).observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ["data-theme"],
-  });
+  async function initComments() {
+    const root = document.querySelector<HTMLElement>(".comments");
+    if (!root) return; // 댓글 영역이 없는 페이지
+    const slug = root.dataset.slug || "";
+    const bodyEl = root.querySelector<HTMLElement>("[data-body]")!;
+    const countEl = root.querySelector<HTMLElement>("[data-count]")!;
+
+    if (!isSupabaseConfigured) {
+      bodyEl.innerHTML =
+        '<p class="comments-note">댓글이 아직 설정되지 않았습니다. <code>.env</code>에 <code>PUBLIC_SUPABASE_URL</code> / <code>PUBLIC_SUPABASE_ANON_KEY</code>를 입력하세요.</p>';
+      return;
+    }
+    const sb = getSupabase()!;
+
+    // 현재 세션
+    const {
+      data: { session },
+    } = await sb.auth.getSession();
+    const me = session?.user ?? null;
+
+    // 댓글 로드
+    const { data, error } = await sb
+      .from("comments")
+      .select("*")
+      .eq("post_slug", slug)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      bodyEl.innerHTML = `<p class="comments-note">댓글을 불러오지 못했습니다: ${error.message}</p>`;
+      return;
+    }
+    const rows = (data ?? []) as Row[];
+    countEl.textContent = rows.length ? String(rows.length) : "";
+
+    // 화면 구성
+    bodyEl.replaceChildren();
+
+    // 1) 인증 바
+    const auth = document.createElement("div");
+    auth.className = "comment-auth";
+    if (me) {
+      auth.classList.add("logged-in");
+      const { name, avatar } = profileFrom(me);
+      auth.append(avatarEl(name, avatar));
+      const who = document.createElement("span");
+      who.className = "comment-auth-name";
+      who.textContent = name;
+      const out = document.createElement("button");
+      out.className = "comment-logout";
+      out.textContent = "로그아웃";
+      out.onclick = async () => {
+        await sb.auth.signOut();
+        initComments();
+      };
+      auth.append(who, out);
+    } else {
+      auth.classList.add("logged-out");
+      const hint = document.createElement("span");
+      hint.className = "comment-login-hint";
+      hint.textContent = "로그인하고 댓글 남기기";
+      const row = document.createElement("div");
+      row.className = "comment-login-row";
+      for (const p of PROVIDERS) {
+        const b = document.createElement("button");
+        b.className = `comment-login-btn provider-${p.id}`;
+        b.innerHTML = `${ICONS[p.id] ?? ""}<span>${p.label}</span>`;
+        b.onclick = () =>
+          sb.auth.signInWithOAuth({
+            provider: p.id as any,
+            options: {
+              redirectTo: window.location.href,
+              ...("scopes" in p ? { scopes: p.scopes } : {}),
+            },
+          });
+        row.append(b);
+      }
+      auth.append(hint, row);
+    }
+    bodyEl.append(auth);
+
+    // 2) 최상위 작성 폼 (로그인 시)
+    if (me) bodyEl.append(composer(null, "댓글을 입력하세요"));
+
+    // 3) 댓글 목록 (2단계: 루트 + 답글)
+    const list = document.createElement("ul");
+    list.className = "comment-list";
+    const roots = rows.filter((r) => r.parent_id === null);
+    const childrenOf = (id: number) => rows.filter((r) => r.parent_id === id);
+    if (!roots.length) {
+      const empty = document.createElement("p");
+      empty.className = "comments-note";
+      empty.textContent = "첫 댓글을 남겨보세요.";
+      bodyEl.append(empty);
+    }
+    for (const r of roots) {
+      list.append(commentEl(r, false));
+      const kids = childrenOf(r.id);
+      if (kids.length) {
+        const sub = document.createElement("ul");
+        sub.className = "comment-list replies";
+        for (const k of kids) sub.append(commentEl(k, true));
+        list.append(sub);
+      }
+    }
+    bodyEl.append(list);
+
+    // ── 헬퍼 (위 스코프의 sb / me / slug 사용) ──
+    function composer(parentId: number | null, placeholder: string): HTMLFormElement {
+      const form = document.createElement("form");
+      form.className = parentId === null ? "comment-form" : "comment-form reply-form";
+      const ta = document.createElement("textarea");
+      ta.className = "comment-input";
+      ta.placeholder = placeholder;
+      ta.required = true;
+      ta.maxLength = 2000;
+      ta.rows = parentId === null ? 3 : 2;
+      const bar = document.createElement("div");
+      bar.className = "comment-form-bar";
+      const submit = document.createElement("button");
+      submit.type = "submit";
+      submit.className = "comment-btn primary";
+      submit.textContent = "등록";
+      bar.append(submit);
+      form.append(ta, bar);
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const text = ta.value.trim();
+        if (!text || !me) return;
+        submit.disabled = true;
+        const { name, avatar } = profileFrom(me);
+        const { error: insErr } = await sb.from("comments").insert({
+          post_slug: slug,
+          parent_id: parentId,
+          user_id: me.id,
+          author_name: name,
+          author_avatar: avatar,
+          body: text,
+        });
+        if (insErr) {
+          submit.disabled = false;
+          alert("등록 실패: " + insErr.message);
+          return;
+        }
+        initComments();
+      };
+      return form;
+    }
+
+    function commentEl(r: Row, isReply: boolean): HTMLLIElement {
+      const li = document.createElement("li");
+      li.className = "comment";
+      const head = document.createElement("div");
+      head.className = "comment-head";
+      head.append(avatarEl(r.author_name, r.author_avatar));
+      const meta = document.createElement("div");
+      meta.className = "comment-meta";
+      const nm = document.createElement("span");
+      nm.className = "comment-name";
+      nm.textContent = r.author_name;
+      const ts = document.createElement("time");
+      ts.className = "comment-time";
+      ts.textContent = fmt(r.created_at);
+      meta.append(nm, ts);
+      head.append(meta);
+      li.append(head);
+
+      const p = document.createElement("p");
+      p.className = "comment-text";
+      p.textContent = r.body; // XSS 방지: 텍스트로만 삽입
+      li.append(p);
+
+      // 액션: 답글(루트만) / 삭제(본인)
+      const actions = document.createElement("div");
+      actions.className = "comment-actions";
+      if (me && !isReply) {
+        const reply = document.createElement("button");
+        reply.className = "comment-link";
+        reply.textContent = "답글";
+        let openForm: HTMLFormElement | null = null;
+        reply.onclick = () => {
+          if (openForm) {
+            openForm.remove();
+            openForm = null;
+            return;
+          }
+          openForm = composer(r.id, "답글을 입력하세요");
+          li.append(openForm);
+          openForm.querySelector("textarea")?.focus();
+        };
+        actions.append(reply);
+      }
+      if (me && me.id === r.user_id) {
+        const del = document.createElement("button");
+        del.className = "comment-link danger";
+        del.textContent = "삭제";
+        del.onclick = async () => {
+          if (!confirm("이 댓글을 삭제할까요?")) return;
+          const { error: delErr } = await sb.from("comments").delete().eq("id", r.id);
+          if (delErr) {
+            alert("삭제 실패: " + delErr.message);
+            return;
+          }
+          initComments();
+        };
+        actions.append(del);
+      }
+      if (actions.childElementCount) li.append(actions);
+      return li;
+    }
+  }
+
+  // View Transitions: 매 페이지 진입마다 재초기화 (인라인 일회성 리스너 금지)
+  document.addEventListener("astro:page-load", initComments);
 </script>
+
+<!-- UI가 전부 JS로 생성되므로 scoped가 아닌 전역 스타일로 적용 (클래스명을 .comment* 로 한정) -->
+<style is:global>
+  .comments {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-sans);
+  }
+  .comments-title {
+    font-family: var(--font-sans);
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem;
+  }
+  .comments-count { color: var(--accent); font-weight: 600; }
+  .comments-note {
+    font-size: 0.9rem;
+    color: var(--muted-foreground);
+  }
+
+  /* ── 로그인 (로그아웃 상태) ── */
+  .comment-auth.logged-out {
+    padding: 1.5rem 1.25rem;
+    margin-bottom: 1.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--muted) 28%, transparent);
+    text-align: center;
+  }
+  .comment-login-hint {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0.95rem;
+  }
+  .comment-login-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.55rem;
+  }
+  .comment-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-sans);
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.6rem 1rem;
+    border-radius: 0.6rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  }
+  .comment-login-btn svg { display: block; flex-shrink: 0; }
+  .comment-login-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14); }
+  .comment-login-btn:active { transform: translateY(0); box-shadow: none; }
+  .comment-login-btn.provider-github { background: #24292f; color: #fff; }
+  .comment-login-btn.provider-google { background: #fff; color: #3c4043; border-color: #dadce0; }
+  .comment-login-btn.provider-kakao  { background: #fee500; color: #181600; }
+
+  /* ── 인증 바 (로그인 상태) ── */
+  .comment-auth.logged-in {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--muted) 22%, transparent);
+  }
+  .comment-auth-name {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .comment-logout {
+    margin-left: auto;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .comment-logout:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* ── 아바타 ── */
+  .comment-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+  .comment-avatar-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 700;
+    border: none;
+  }
+
+  /* ── 작성 폼 ── */
+  .comment-form { margin-bottom: 1.75rem; }
+  .reply-form { margin: 0.85rem 0 0.35rem; }
+  .comment-input {
+    width: 100%;
+    box-sizing: border-box;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.65;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.65rem;
+    background: var(--background);
+    color: var(--foreground);
+    resize: vertical;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .comment-input::placeholder { color: var(--muted-foreground); }
+  .comment-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+  .comment-form-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.6rem;
+  }
+  .comment-btn.primary {
+    font-family: var(--font-sans);
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 0.5rem 1.2rem;
+    border-radius: 0.55rem;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-foreground);
+    cursor: pointer;
+    transition: filter 0.15s, opacity 0.15s;
+  }
+  .comment-btn.primary:hover { filter: brightness(1.08); }
+  .comment-btn.primary:disabled { opacity: 0.5; cursor: default; filter: none; }
+
+  /* ── 목록 ── */
+  .comment-list { list-style: none; margin: 0; padding: 0; }
+  .comment-list.replies {
+    margin-left: 1.5rem;
+    padding-left: 1.1rem;
+    border-left: 2px solid var(--border);
+  }
+  .comment {
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .comment-list.replies .comment:last-child { border-bottom: none; }
+  .comment-head {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.55rem;
+  }
+  .comment-meta { display: flex; flex-direction: column; line-height: 1.35; }
+  .comment-name {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .comment-time {
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+  .comment-text {
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin: 0;
+    padding-left: 2.9rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .comment-actions {
+    display: flex;
+    gap: 0.85rem;
+    margin-top: 0.55rem;
+    padding-left: 2.9rem;
+  }
+  .comment-link {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+  .comment-link:hover {
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .comment-link.danger:hover { color: var(--code); }
+</style>
