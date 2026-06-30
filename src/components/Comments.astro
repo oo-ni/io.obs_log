@@ -33,6 +33,16 @@ const { slug } = Astro.props;
     { id: "kakao", label: "Kakao", scopes: "profile_nickname profile_image account_email" },
   ] as const;
 
+  // 브랜드 로고 (신뢰된 정적 마크업 — innerHTML로 삽입해도 안전)
+  const ICONS: Record<string, string> = {
+    github:
+      '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 014 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>',
+    google:
+      '<svg viewBox="0 0 18 18" width="16" height="16" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 01-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 009 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.41 5.41 0 010-3.44V4.95H.96a9 9 0 000 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 00.96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>',
+    kakao:
+      '<svg viewBox="0 0 18 18" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M9 1.6C4.58 1.6 1 4.4 1 7.85c0 2.2 1.46 4.13 3.66 5.25-.16.58-.58 2.1-.66 2.43-.1.4.15.4.31.29.12-.08 1.95-1.32 2.75-1.87.63.09 1.27.14 1.94.14 4.42 0 8-2.8 8-6.25S13.42 1.6 9 1.6z"/></svg>',
+  };
+
   function fmt(iso: string): string {
     const d = new Date(iso);
     const p = (n: number) => String(n).padStart(2, "0");
@@ -97,13 +107,14 @@ const { slug } = Astro.props;
     const auth = document.createElement("div");
     auth.className = "comment-auth";
     if (me) {
+      auth.classList.add("logged-in");
       const { name, avatar } = profileFrom(me);
       auth.append(avatarEl(name, avatar));
       const who = document.createElement("span");
       who.className = "comment-auth-name";
       who.textContent = name;
       const out = document.createElement("button");
-      out.className = "comment-btn ghost";
+      out.className = "comment-logout";
       out.textContent = "로그아웃";
       out.onclick = async () => {
         await sb.auth.signOut();
@@ -111,14 +122,16 @@ const { slug } = Astro.props;
       };
       auth.append(who, out);
     } else {
+      auth.classList.add("logged-out");
       const hint = document.createElement("span");
-      hint.className = "comment-auth-name";
-      hint.textContent = "로그인하고 댓글 남기기:";
-      auth.append(hint);
+      hint.className = "comment-login-hint";
+      hint.textContent = "로그인하고 댓글 남기기";
+      const row = document.createElement("div");
+      row.className = "comment-login-row";
       for (const p of PROVIDERS) {
         const b = document.createElement("button");
-        b.className = `comment-btn provider-${p.id}`;
-        b.textContent = p.label;
+        b.className = `comment-login-btn provider-${p.id}`;
+        b.innerHTML = `${ICONS[p.id] ?? ""}<span>${p.label}</span>`;
         b.onclick = () =>
           sb.auth.signInWithOAuth({
             provider: p.id as any,
@@ -127,8 +140,9 @@ const { slug } = Astro.props;
               ...("scopes" in p ? { scopes: p.scopes } : {}),
             },
           });
-        auth.append(b);
+        row.append(b);
       }
+      auth.append(hint, row);
     }
     bodyEl.append(auth);
 
@@ -267,178 +281,214 @@ const { slug } = Astro.props;
   document.addEventListener("astro:page-load", initComments);
 </script>
 
-<style>
+<!-- UI가 전부 JS로 생성되므로 scoped가 아닌 전역 스타일로 적용 (클래스명을 .comment* 로 한정) -->
+<style is:global>
   .comments {
     margin-top: 3rem;
     padding-top: 2rem;
     border-top: 1px solid var(--border);
+    font-family: var(--font-sans);
   }
   .comments-title {
     font-family: var(--font-sans);
     font-size: 1.25rem;
     font-weight: 700;
-    margin: 0 0 1.25rem;
+    margin: 0 0 1.5rem;
   }
-  .comments-count {
-    color: var(--accent);
-  }
+  .comments-count { color: var(--accent); font-weight: 600; }
   .comments-note {
-    font-family: var(--font-app);
     font-size: 0.9rem;
     color: var(--muted-foreground);
   }
 
-  /* 인증 바 */
-  .comment-auth {
+  /* ── 로그인 (로그아웃 상태) ── */
+  .comment-auth.logged-out {
+    padding: 1.5rem 1.25rem;
+    margin-bottom: 1.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.85rem;
+    background: color-mix(in srgb, var(--muted) 28%, transparent);
+    text-align: center;
+  }
+  .comment-login-hint {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin-bottom: 0.95rem;
+  }
+  .comment-login-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.55rem;
+  }
+  .comment-login-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-family: var(--font-sans);
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.6rem 1rem;
+    border-radius: 0.6rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+  }
+  .comment-login-btn svg { display: block; flex-shrink: 0; }
+  .comment-login-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.14); }
+  .comment-login-btn:active { transform: translateY(0); box-shadow: none; }
+  .comment-login-btn.provider-github { background: #24292f; color: #fff; }
+  .comment-login-btn.provider-google { background: #fff; color: #3c4043; border-color: #dadce0; }
+  .comment-login-btn.provider-kakao  { background: #fee500; color: #181600; }
+
+  /* ── 인증 바 (로그인 상태) ── */
+  .comment-auth.logged-in {
     display: flex;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.85rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    background: color-mix(in srgb, var(--muted) 22%, transparent);
   }
   .comment-auth-name {
-    font-family: var(--font-app);
+    font-family: var(--font-sans);
     font-size: 0.9rem;
-    color: var(--muted-foreground);
+    font-weight: 600;
+    color: var(--foreground);
   }
+  .comment-logout {
+    margin-left: auto;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    padding: 0.3rem 0.7rem;
+    border-radius: 0.45rem;
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .comment-logout:hover { color: var(--accent); border-color: var(--accent); }
 
-  /* 아바타 */
+  /* ── 아바타 ── */
   .comment-avatar {
-    width: 2rem;
-    height: 2rem;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     object-fit: cover;
     flex-shrink: 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
   .comment-avatar-fallback {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: var(--muted);
-    color: var(--foreground);
-    font-family: var(--font-app);
-    font-size: 0.85rem;
-    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
+    color: #fff;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+    font-weight: 700;
+    border: none;
   }
 
-  /* 버튼 */
-  .comment-btn {
-    font-family: var(--font-app);
-    font-size: 0.85rem;
-    padding: 0.35rem 0.7rem;
-    border-radius: 0.4rem;
-    border: 1px solid var(--border);
-    background: var(--background);
-    color: var(--foreground);
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-  }
-  .comment-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .comment-btn.primary {
-    background: var(--accent);
-    color: var(--accent-foreground);
-    border-color: var(--accent);
-  }
-  .comment-btn.primary:hover {
-    opacity: 0.9;
-    color: var(--accent-foreground);
-  }
-  .comment-btn.primary:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .comment-btn.ghost {
-    border-color: transparent;
-  }
-
-  /* 작성 폼 */
-  .comment-form {
-    margin-bottom: 1.5rem;
-  }
-  .reply-form {
-    margin: 0.75rem 0 0.25rem;
-  }
+  /* ── 작성 폼 ── */
+  .comment-form { margin-bottom: 1.75rem; }
+  .reply-form { margin: 0.85rem 0 0.35rem; }
   .comment-input {
     width: 100%;
     box-sizing: border-box;
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 0.95rem;
-    line-height: 1.6;
-    padding: 0.7rem 0.85rem;
+    line-height: 1.65;
+    padding: 0.85rem 1rem;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.65rem;
     background: var(--background);
     color: var(--foreground);
     resize: vertical;
+    transition: border-color 0.15s, box-shadow 0.15s;
   }
+  .comment-input::placeholder { color: var(--muted-foreground); }
   .comment-input:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
   }
   .comment-form-bar {
     display: flex;
     justify-content: flex-end;
-    margin-top: 0.5rem;
+    margin-top: 0.6rem;
   }
+  .comment-btn.primary {
+    font-family: var(--font-sans);
+    font-size: 0.86rem;
+    font-weight: 600;
+    padding: 0.5rem 1.2rem;
+    border-radius: 0.55rem;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-foreground);
+    cursor: pointer;
+    transition: filter 0.15s, opacity 0.15s;
+  }
+  .comment-btn.primary:hover { filter: brightness(1.08); }
+  .comment-btn.primary:disabled { opacity: 0.5; cursor: default; filter: none; }
 
-  /* 목록 */
-  .comment-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
+  /* ── 목록 ── */
+  .comment-list { list-style: none; margin: 0; padding: 0; }
   .comment-list.replies {
     margin-left: 1.5rem;
-    padding-left: 1rem;
+    padding-left: 1.1rem;
     border-left: 2px solid var(--border);
   }
   .comment {
-    padding: 1rem 0;
+    padding: 1.1rem 0;
     border-bottom: 1px solid var(--border);
   }
-  .comment-list.replies .comment:last-child {
-    border-bottom: none;
-  }
+  .comment-list.replies .comment:last-child { border-bottom: none; }
   .comment-head {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    margin-bottom: 0.5rem;
+    gap: 0.65rem;
+    margin-bottom: 0.55rem;
   }
-  .comment-meta {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.3;
-  }
+  .comment-meta { display: flex; flex-direction: column; line-height: 1.35; }
   .comment-name {
-    font-family: var(--font-app);
+    font-family: var(--font-sans);
     font-size: 0.9rem;
     font-weight: 600;
+    color: var(--foreground);
   }
   .comment-time {
-    font-family: var(--font-app);
+    font-family: var(--font-sans);
     font-size: 0.75rem;
     color: var(--muted-foreground);
   }
   .comment-text {
-    font-family: var(--font-serif);
+    font-family: var(--font-sans);
     font-size: 0.95rem;
     line-height: 1.7;
     margin: 0;
+    padding-left: 2.9rem;
     white-space: pre-wrap;
     word-break: break-word;
   }
   .comment-actions {
     display: flex;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
+    gap: 0.85rem;
+    margin-top: 0.55rem;
+    padding-left: 2.9rem;
   }
   .comment-link {
-    font-family: var(--font-app);
+    font-family: var(--font-sans);
     font-size: 0.78rem;
+    font-weight: 500;
     background: none;
     border: none;
     padding: 0;
@@ -450,7 +500,5 @@ const { slug } = Astro.props;
     text-decoration: underline;
     text-underline-offset: 3px;
   }
-  .comment-link.danger:hover {
-    color: var(--code);
-  }
+  .comment-link.danger:hover { color: var(--code); }
 </style>
