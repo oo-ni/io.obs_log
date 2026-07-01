@@ -120,16 +120,16 @@ begin
     where user_id = new.user_id and created_at > now() - interval '1 minute';
 
   if recent_count >= 5 then
-    raise exception '댓글을 너무 빠르게 작성하고 있습니다. 잠시 후 다시 시도해주세요.';
+    raise exception 'You are commenting too quickly. Please try again in a moment.';
   end if;
   if last_at is not null and last_at > now() - interval '5 seconds' then
-    raise exception '조금 천천히 작성해주세요. (연속 작성 제한)';
+    raise exception 'Please slow down before posting again.';
   end if;
 
   -- 본문 내 'http' 4자 등장 횟수로 링크 개수 근사 → 3개 초과 차단
   link_count := (length(new.body) - length(replace(lower(new.body), 'http', ''))) / 4;
   if link_count > 3 then
-    raise exception '링크가 너무 많습니다.';
+    raise exception 'Too many links.';
   end if;
 
   return new;
