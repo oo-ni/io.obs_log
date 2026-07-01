@@ -142,7 +142,7 @@ const { slug } = Astro.props;
           sb.auth.signInWithOAuth({
             provider: p.id as any,
             options: {
-              redirectTo: window.location.href,
+              redirectTo: window.location.origin + window.location.pathname,
               ...("scopes" in p ? { scopes: p.scopes } : {}),
             },
           });
