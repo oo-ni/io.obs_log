@@ -6,24 +6,27 @@ interface Props {
 const { slug } = Astro.props;
 ---
 <section class="comments" data-pagefind-ignore data-slug={slug}>
-  <h2 class="comments-title">댓글 <span class="comments-count" data-count></span></h2>
+  <h2 class="comments-title">Comments <span class="comments-count" data-count></span></h2>
   <div class="comments-body" data-body>
-    <p class="comments-note" data-loading>댓글을 불러오는 중…</p>
+    <p class="comments-note" data-loading>Loading comments…</p>
   </div>
 </section>
 
 <script>
   import { getSupabase, profileFrom, isSupabaseConfigured } from "../lib/supabase";
 
+  // get_comments RPC 가 반환하는 형태. 비밀댓글이고 볼 권한이 없으면 필드가 null,
+  // can_view=false 로 내려온다(잠금 표시용).
   type Row = {
     id: number;
-    post_slug: string;
     parent_id: number | null;
-    user_id: string;
-    author_name: string;
+    user_id: string | null;
+    author_name: string | null;
     author_avatar: string | null;
-    body: string;
+    body: string | null;
     created_at: string;
+    is_secret: boolean;
+    can_view: boolean;
   };
 
   const PROVIDERS = [
@@ -49,7 +52,16 @@ const { slug } = Astro.props;
     return `${d.getFullYear()}.${p(d.getMonth() + 1)}.${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   }
 
-  // 아바타: URL 있으면 img, 없으면 이름 첫 글자 원형
+  // 별명(표시 이름) — 브라우저에 기억, 비우면 소셜 프로필 이름으로 폴백
+  const NICK_KEY = "comment-nick";
+  const getNick = (fallback: string) =>
+    (localStorage.getItem(NICK_KEY) || "").trim() || fallback;
+
+  // 기본 인물 실루엣 (프로필 이미지 없을 때)
+  const PERSON_ICON =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2.5c-4.7 0-8.5 2.35-8.5 5.25V21h17v-1.25c0-2.9-3.8-5.25-8.5-5.25z"/></svg>';
+
+  // 아바타: URL 있으면 img, 없으면 기본 인물 아이콘
   function avatarEl(name: string, url: string | null): HTMLElement {
     if (url) {
       const img = document.createElement("img");
@@ -62,7 +74,7 @@ const { slug } = Astro.props;
     }
     const span = document.createElement("span");
     span.className = "comment-avatar comment-avatar-fallback";
-    span.textContent = (name[0] || "?").toUpperCase();
+    span.innerHTML = PERSON_ICON;
     return span;
   }
 
@@ -75,7 +87,7 @@ const { slug } = Astro.props;
 
     if (!isSupabaseConfigured) {
       bodyEl.innerHTML =
-        '<p class="comments-note">댓글이 아직 설정되지 않았습니다. <code>.env</code>에 <code>PUBLIC_SUPABASE_URL</code> / <code>PUBLIC_SUPABASE_ANON_KEY</code>를 입력하세요.</p>';
+        '<p class="comments-note">Comments are not configured yet. Add <code>PUBLIC_SUPABASE_URL</code> / <code>PUBLIC_SUPABASE_ANON_KEY</code> to <code>.env</code>.</p>';
       return;
     }
     const sb = getSupabase()!;
@@ -86,15 +98,18 @@ const { slug } = Astro.props;
     } = await sb.auth.getSession();
     const me = session?.user ?? null;
 
-    // 댓글 로드
-    const { data, error } = await sb
-      .from("comments")
-      .select("*")
-      .eq("post_slug", slug)
-      .order("created_at", { ascending: true });
+    // 블로그 주인(관리자) 여부 — 비밀댓글 열람/모든 댓글 삭제 권한
+    let isAdmin = false;
+    if (me) {
+      const { data: adminData } = await sb.rpc("is_current_admin");
+      isAdmin = adminData === true;
+    }
+
+    // 댓글 로드 (비밀댓글 마스킹은 DB 함수가 처리)
+    const { data, error } = await sb.rpc("get_comments", { p_slug: slug });
 
     if (error) {
-      bodyEl.innerHTML = `<p class="comments-note">댓글을 불러오지 못했습니다: ${error.message}</p>`;
+      bodyEl.innerHTML = `<p class="comments-note">Failed to load comments: ${error.message}</p>`;
       return;
     }
     const rows = (data ?? []) as Row[];
@@ -110,22 +125,33 @@ const { slug } = Astro.props;
       auth.classList.add("logged-in");
       const { name, avatar } = profileFrom(me);
       auth.append(avatarEl(name, avatar));
-      const who = document.createElement("span");
-      who.className = "comment-auth-name";
-      who.textContent = name;
+      // 편집 가능한 별명 — 비우면 소셜 이름으로 표시됨
+      const nick = document.createElement("input");
+      nick.className = "comment-nick-input";
+      nick.type = "text";
+      nick.maxLength = 20;
+      nick.value = getNick(name);
+      nick.placeholder = name;
+      nick.setAttribute("aria-label", "Display name for your comments");
+      nick.title = "Display name shown on your comments (saved in this browser)";
+      nick.oninput = () => {
+        const v = nick.value.trim();
+        if (v) localStorage.setItem(NICK_KEY, v);
+        else localStorage.removeItem(NICK_KEY);
+      };
       const out = document.createElement("button");
       out.className = "comment-logout";
-      out.textContent = "로그아웃";
+      out.textContent = "Sign out";
       out.onclick = async () => {
         await sb.auth.signOut();
         initComments();
       };
-      auth.append(who, out);
+      auth.append(nick, out);
     } else {
       auth.classList.add("logged-out");
       const hint = document.createElement("span");
       hint.className = "comment-login-hint";
-      hint.textContent = "로그인하고 댓글 남기기";
+      hint.textContent = "Sign in to leave a comment";
       const row = document.createElement("div");
       row.className = "comment-login-row";
       for (const p of PROVIDERS) {
@@ -136,7 +162,7 @@ const { slug } = Astro.props;
           sb.auth.signInWithOAuth({
             provider: p.id as any,
             options: {
-              redirectTo: window.location.href,
+              redirectTo: window.location.origin + window.location.pathname,
               ...("scopes" in p ? { scopes: p.scopes } : {}),
             },
           });
@@ -147,7 +173,7 @@ const { slug } = Astro.props;
     bodyEl.append(auth);
 
     // 2) 최상위 작성 폼 (로그인 시)
-    if (me) bodyEl.append(composer(null, "댓글을 입력하세요"));
+    if (me) bodyEl.append(composer(null, "Write a comment"));
 
     // 3) 댓글 목록 (2단계: 루트 + 답글)
     const list = document.createElement("ul");
@@ -157,7 +183,7 @@ const { slug } = Astro.props;
     if (!roots.length) {
       const empty = document.createElement("p");
       empty.className = "comments-note";
-      empty.textContent = "첫 댓글을 남겨보세요.";
+      empty.textContent = "Be the first to comment.";
       bodyEl.append(empty);
     }
     for (const r of roots) {
@@ -184,11 +210,17 @@ const { slug } = Astro.props;
       ta.rows = parentId === null ? 3 : 2;
       const bar = document.createElement("div");
       bar.className = "comment-form-bar";
+      // 비밀댓글 체크박스
+      const secretLabel = document.createElement("label");
+      secretLabel.className = "comment-secret-toggle";
+      const secretCb = document.createElement("input");
+      secretCb.type = "checkbox";
+      secretLabel.append(secretCb, document.createTextNode("🔒 Private"));
       const submit = document.createElement("button");
       submit.type = "submit";
       submit.className = "comment-btn primary";
-      submit.textContent = "등록";
-      bar.append(submit);
+      submit.textContent = "Post";
+      bar.append(secretLabel, submit);
       form.append(ta, bar);
       form.onsubmit = async (e) => {
         e.preventDefault();
@@ -200,13 +232,14 @@ const { slug } = Astro.props;
           post_slug: slug,
           parent_id: parentId,
           user_id: me.id,
-          author_name: name,
+          author_name: getNick(name), // 별명 우선, 없으면 소셜 이름
           author_avatar: avatar,
           body: text,
+          is_secret: secretCb.checked,
         });
         if (insErr) {
           submit.disabled = false;
-          alert("등록 실패: " + insErr.message);
+          alert("Failed to post: " + insErr.message);
           return;
         }
         initComments();
@@ -215,16 +248,31 @@ const { slug } = Astro.props;
     }
 
     function commentEl(r: Row, isReply: boolean): HTMLLIElement {
+      const locked = r.is_secret && !r.can_view; // 비밀댓글인데 볼 권한 없음
       const li = document.createElement("li");
-      li.className = "comment";
+      li.className = locked ? "comment locked" : "comment";
+
       const head = document.createElement("div");
       head.className = "comment-head";
-      head.append(avatarEl(r.author_name, r.author_avatar));
+      if (locked) {
+        const lock = document.createElement("span");
+        lock.className = "comment-avatar comment-avatar-fallback";
+        lock.textContent = "🔒";
+        head.append(lock);
+      } else {
+        head.append(avatarEl(r.author_name || "?", r.author_avatar));
+      }
       const meta = document.createElement("div");
       meta.className = "comment-meta";
       const nm = document.createElement("span");
       nm.className = "comment-name";
-      nm.textContent = r.author_name;
+      nm.textContent = locked ? "Private" : r.author_name || "Anonymous";
+      if (r.is_secret && !locked) {
+        const badge = document.createElement("span");
+        badge.className = "comment-secret-badge";
+        badge.textContent = "🔒 Private";
+        nm.append(" ", badge);
+      }
       const ts = document.createElement("time");
       ts.className = "comment-time";
       ts.textContent = fmt(r.created_at);
@@ -234,16 +282,16 @@ const { slug } = Astro.props;
 
       const p = document.createElement("p");
       p.className = "comment-text";
-      p.textContent = r.body; // XSS 방지: 텍스트로만 삽입
+      p.textContent = locked ? "This is a private comment." : r.body || ""; // XSS 방지: 텍스트로만 삽입
       li.append(p);
 
-      // 액션: 답글(루트만) / 삭제(본인)
+      // 액션: 답글(볼 수 있는 루트만) / 삭제(본인 또는 관리자)
       const actions = document.createElement("div");
       actions.className = "comment-actions";
-      if (me && !isReply) {
+      if (me && !isReply && !locked) {
         const reply = document.createElement("button");
         reply.className = "comment-link";
-        reply.textContent = "답글";
+        reply.textContent = "Reply";
         let openForm: HTMLFormElement | null = null;
         reply.onclick = () => {
           if (openForm) {
@@ -251,21 +299,21 @@ const { slug } = Astro.props;
             openForm = null;
             return;
           }
-          openForm = composer(r.id, "답글을 입력하세요");
+          openForm = composer(r.id, "Write a reply");
           li.append(openForm);
           openForm.querySelector("textarea")?.focus();
         };
         actions.append(reply);
       }
-      if (me && me.id === r.user_id) {
+      if (me && ((r.user_id && me.id === r.user_id) || isAdmin)) {
         const del = document.createElement("button");
         del.className = "comment-link danger";
-        del.textContent = "삭제";
+        del.textContent = "Delete";
         del.onclick = async () => {
-          if (!confirm("이 댓글을 삭제할까요?")) return;
+          if (!confirm("Delete this comment?")) return;
           const { error: delErr } = await sb.from("comments").delete().eq("id", r.id);
           if (delErr) {
-            alert("삭제 실패: " + delErr.message);
+            alert("Failed to delete: " + delErr.message);
             return;
           }
           initComments();
@@ -361,6 +409,33 @@ const { slug } = Astro.props;
     font-weight: 600;
     color: var(--foreground);
   }
+  /* 별명 입력 — 평소엔 텍스트처럼, 포커스 시 입력칸 티가 남 */
+  .comment-nick-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 12rem;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--foreground);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 0.4rem;
+    padding: 0.25rem 0.45rem;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .comment-nick-input:hover {
+    border-color: var(--border);
+  }
+  .comment-nick-input:focus {
+    outline: none;
+    background: var(--background);
+    border-color: var(--accent);
+  }
+  .comment-nick-input::placeholder {
+    color: var(--muted-foreground);
+    font-weight: 400;
+  }
   .comment-logout {
     margin-left: auto;
     font-family: var(--font-sans);
@@ -389,12 +464,14 @@ const { slug } = Astro.props;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #000));
-    color: #fff;
-    font-family: var(--font-sans);
-    font-size: 0.95rem;
-    font-weight: 700;
-    border: none;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    font-size: 1rem; /* 잠금 이모지(🔒)용 */
+  }
+  .comment-avatar-fallback svg {
+    width: 64%;
+    height: 64%;
+    display: block;
   }
 
   /* ── 작성 폼 ── */
@@ -422,8 +499,44 @@ const { slug } = Astro.props;
   }
   .comment-form-bar {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     margin-top: 0.6rem;
+  }
+  /* 비밀댓글 토글 — 알약 버튼, 체크 시 accent 로 채워짐 */
+  .comment-secret-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    padding: 0.4rem 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .comment-secret-toggle:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .comment-secret-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .comment-secret-toggle:has(input:checked) {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+  }
+  .comment-secret-toggle:has(input:focus-visible) {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
   .comment-btn.primary {
     font-family: var(--font-sans);
@@ -468,6 +581,20 @@ const { slug } = Astro.props;
   .comment-time {
     font-family: var(--font-sans);
     font-size: 0.75rem;
+    color: var(--muted-foreground);
+  }
+  .comment-secret-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    vertical-align: middle;
+  }
+  .comment.locked .comment-text {
+    color: var(--muted-foreground);
+    font-style: italic;
+  }
+  .comment.locked .comment-avatar-fallback {
+    background: var(--muted);
     color: var(--muted-foreground);
   }
   .comment-text {

@@ -40,13 +40,13 @@ const base = import.meta.env.BASE_URL;
     <nav class="post-nav" data-pagefind-ignore>
       {prev ? (
         <a class="post-nav-item prev" href={`${base}posts/${prev.id}`}>
-          <span class="post-nav-dir">← 이전 글</span>
+          <span class="post-nav-dir">← Previous</span>
           <span class="post-nav-title">{prev.data.title}</span>
         </a>
       ) : <span class="post-nav-item empty" />}
       {next ? (
         <a class="post-nav-item next" href={`${base}posts/${next.id}`}>
-          <span class="post-nav-dir">다음 글 →</span>
+          <span class="post-nav-dir">Next →</span>
           <span class="post-nav-title">{next.data.title}</span>
         </a>
       ) : <span class="post-nav-item empty" />}
