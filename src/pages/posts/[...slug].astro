@@ -55,3 +55,38 @@ const base = import.meta.env.BASE_URL;
   <Comments slug={post.id} />
   <p style="margin-top:2.5rem"><a class="back-link" href={base}>← Go Back</a></p>
 </Base>
+
+<script>
+  // 코드블록에 복사 버튼 주입 (View Transitions 대응: astro:page-load 마다 재실행)
+  function addCopyButtons() {
+    const blocks = document.querySelectorAll<HTMLPreElement>(".prose pre.astro-code");
+    blocks.forEach((pre) => {
+      if (pre.parentElement?.classList.contains("code-block")) return; // 이미 처리됨
+      const wrap = document.createElement("div");
+      wrap.className = "code-block";
+      pre.replaceWith(wrap);
+      wrap.appendChild(pre);
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "code-copy";
+      btn.textContent = "Copy";
+      btn.setAttribute("aria-label", "Copy code");
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(pre.innerText);
+          btn.textContent = "Copied!";
+          btn.classList.add("copied");
+        } catch {
+          btn.textContent = "Failed";
+        }
+        setTimeout(() => {
+          btn.textContent = "Copy";
+          btn.classList.remove("copied");
+        }, 1500);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+  document.addEventListener("astro:page-load", addCopyButtons);
+</script>
