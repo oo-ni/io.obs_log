@@ -267,16 +267,52 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
 /* 펜스 코드블록: Shiki(defaultColor:false) → 토큰마다 --shiki-light/--shiki-dark 변수만 출력.
    라이트/다크 색을 CSS에서 직접 토글한다(언어별 토큰 색 + 배경 모두). */
 .prose pre, .prose pre code { font-family: var(--font-app); }
-.prose pre.astro-code { padding: 1rem 1.1rem; border-radius: 6px; overflow-x: auto; font-size: .9rem; line-height: 1.6; margin-block-start: .1em; margin-block-end: 2em; }
-.prose p:has(+ pre) { margin-block-end: .1em; }
+.prose pre.astro-code { padding: 1rem 1.1rem; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,.05); overflow-x: auto; font-size: .9rem; line-height: 1.6; margin-block-start: .1em; margin-block-end: 2em; }
+.prose p:has(+ pre), .prose p:has(+ .code-block) { margin-block-end: .1em; }
 /* 라이트: 코드 배경 + 토큰 색 */
 .prose pre.astro-code { background-color: var(--shiki-light-bg); }
 .prose pre.astro-code span { color: var(--shiki-light); }
 /* 다크: 코드 배경 + 토큰 색 토글 */
 html[data-theme="dark"] .prose pre.astro-code { background-color: var(--shiki-dark-bg); }
 html[data-theme="dark"] .prose pre.astro-code span { color: var(--shiki-dark); }
+/* 복사 버튼 래퍼: pre 를 감싸고 우상단에 버튼 배치 (JS가 감싼다) */
+.prose .code-block { position: relative; margin-block-end: 2em; }
+.prose .code-block pre.astro-code { margin-block-end: 0; }
+.prose .code-copy {
+  position: absolute; top: .55rem; right: .55rem;
+  font-family: var(--font-app); font-size: .72rem; font-weight: 600;
+  padding: .3rem .55rem; border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--background); color: var(--muted-foreground);
+  cursor: pointer; opacity: 0;
+  transition: opacity .15s, color .15s, border-color .15s;
+}
+.prose .code-block:hover .code-copy, .prose .code-copy:focus-visible { opacity: 1; }
+.prose .code-copy:hover { color: var(--accent); border-color: var(--accent); }
+.prose .code-copy.copied { color: var(--accent); border-color: var(--accent); opacity: 1; }
 /* 인라인 코드(`code`)는 기존처럼 붉은 단색 유지 */
 .prose :not(pre) > code { font-family: var(--font-app); color: var(--code); background: var(--muted); padding: .1rem .35rem; border-radius: 4px; font-size: .9em; }
+/* 이미지: 배경·테두리·그림자로 프레임 처리 → 본문에서 또렷하게, 투명 이미지도 잘 보이게 */
+.prose img { display: block; margin: 1.75em auto; border: 1px solid var(--border); border-radius: 8px; background: var(--muted); box-shadow: 0 2px 12px rgba(0,0,0,.07); }
+/* 한 줄에 여러 장(옵시디언에서 이미지 임베드를 붙여 쓴 경우) → 지정 폭을 비중 삼아 본문 너비를 꽉 채움 */
+.prose .img-row { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; margin: 1.75em 0; }
+/* flex-grow(=옵시디언 폭)로 배분, flex-basis 0 + 비율 유지(height auto) → 왜곡 없이 한 줄에 딱 맞음 */
+.prose .img-row img { margin: 0; flex: 1 1 0; min-width: 0; }
+/* 좁은 화면에선 한 줄에 두 장까지만, 더 좁으면 세로로 */
+@media (max-width: 480px) { .prose .img-row { gap: .6rem; } }
+/* 본문 이미지 클릭 → 확대(라이트박스) */
+.prose img { cursor: zoom-in; }
+.lightbox { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 4vmin; background: rgba(0,0,0,.82); opacity: 0; transition: opacity .2s ease; cursor: zoom-out; }
+.lightbox.open { opacity: 1; }
+/* 확대 크기는 적당히: 너무 큰 이미지도 화면을 꽉 채우지 않게 상한을 둔다(원본보다 크게는 안 키움) */
+.lightbox img { width: auto; height: auto; max-width: min(90vw, 880px); max-height: 82vh; border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,.5); transform: scale(.97); transition: transform .2s ease; }
+.lightbox.open img { transform: scale(1); }
+/* 다크모드: --border 가 주황색이라, 프레임 테두리는 중성색으로 교체 */
+html[data-theme="dark"] .prose pre.astro-code,
+html[data-theme="dark"] .prose img,
+html[data-theme="dark"] .prose .code-copy {
+  border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
 /* 요약 콜아웃: 글 상단에 description을 박스로 노출 (AI 생성/직접 작성 모두) */
 .callout { margin: 0 0 2.5rem; padding: .9rem 1.1rem; background: var(--muted); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 6px; }
 .callout-label { font-family: var(--font-app); font-size: .75rem; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--accent); margin-bottom: .35rem; }
