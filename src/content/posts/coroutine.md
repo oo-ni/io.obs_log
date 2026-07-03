@@ -10,7 +10,7 @@ description: "정의 서브루틴의 일반화 코루틴은 1958년 멜빈 콘�
 코루틴은 1958년 멜빈 콘웨이가 만든, CS에서 가장 오래된 개념 중 하나입니다. 서브루틴(=함수)을 일반화한 것으로:
 - 서브루틴: 진입점 1개, 끝까지 실행 → return 1번. 호출되면 호출자에게 종속(caller-callee)
 - 코루틴: 진입/탈출 지점이 여러 개. 실행 도중 제어를 양보하고, 그 시점의 로컬 상태를 보존한 채 멈췄다가(suspend), 재개되면 그 자리부터 이어감
-![](/attachments/cs_crt_1.png)
+<img src="/attachments/cs_crt_1.png" alt="" />
 
 그래서 **협력적(cooperative) 멀티태스킹**이라고 부릅니다. 강제로 쫓겨나는게 아니라 스스로 양보 지점에서 제어권을 넘기기 때문입니다. 버추얼 스레드 스케줄링이나 asyncio 이벤트 루프 등이 이런 방식인데, 둘 다 코루틴의 일종이거나 그 위에서 만들어진 것이라 할 수 있습니다.
 
@@ -37,7 +37,7 @@ suspend fun main() = withContext(Dispatchers.Default) {   // 스코프 + 디스�
 	launch { greet() }   // 빌더 + suspend 함수
 }
 ```
-![](/attachments/cs_crt_2.png)
+<img src="/attachments/cs_crt_2.png" alt="" />
 ### 1. suspend 함수 (WHAT)
 가장 기본 단위로, `suspend` 키워드를 붙이면 그 함수는 중단/재개가 가능해집니다.
 ```kotlin

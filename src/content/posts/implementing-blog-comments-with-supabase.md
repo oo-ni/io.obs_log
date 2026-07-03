@@ -44,14 +44,14 @@ Supabase는 오픈소스 기반 BaaS(Backend-as-a-Service) 플랫폼입니다.
 대놓고 프론트에 집중하라고 만든 기능인 만큼, API 개발부터 DB 구축까지 단일 플랫폼에서 모두 지원해줍니다. 제일 맘에 들었던건 간편한 Authentication 기능. 이 부분은 아래에서 추가로 설명하겠습니다.
 
 Vercel KV 같은 Redis 기반 키-값 저장소도 고려했지만, 결국 댓글 데이터는 유저 데이터가 포함될 수밖에 없는 구조라 RDB로 관리하는게 복잡도가 낮아보여 Supabase Postsgre를 선택했습니다.
-![](/attachments/be_blog_spbs_3.png)
+<img src="/attachments/be_blog_spbs_3.png" alt="" />
 
 
 # 인증
 댓글 수정, 삭제 기능은 있어야 할 것 같아서, 누가 썼는지를 보장하기 위해 인증 시스템을 도입해야 했습니다.
 Supabase에 등록된 소셜로그인 Providers 중 Google과 Kakao, GitHub를 선택하여 소셜로그인을 구현하기로 했습니다.
-![](/attachments/be_blog_spbs_1.png)
-![](/attachments/be_blog_spbs_2.png)
+<img src="/attachments/be_blog_spbs_1.png" alt="" />
+<img src="/attachments/be_blog_spbs_2.png" alt="" />
 **Supabase Auth** 기능을 활용하면, 코드 몇 줄로 OAuth 흐름을 구현할 수 있습니다.
 
 Auth 클라이언트를 설정하고,
@@ -119,7 +119,7 @@ create policy "delete own"  on public.comments for delete to authenticated using
 ---
 사실 여기까지면 기본적인 댓글 기능은 모두 구현했다고 봐도 무방한데, 있으면 좋겠다 싶은 기능을 추가하고 싶어서 스팸 / 어뷰징 등의 봇 방어, 익명성을 보장하기 위해 비밀 댓글 기능을 추가했습니다.
 # 스팸 / 어뷰징 방어
-사실 이 부분은 직접 관리해도 되지 않을까 했는데, 글이 많아지면 하나하나 관리하기도 힘들고, 무료라고는 하지만 500MB 한도가 있기 때문에 굳이 안만드는거 보다는 낫겠다 싶었습니다.
+이 부분은 직접 관리해도 되지 않을까 했는데, 글이 많아지면 하나하나 댓글 관리하기도 힘들고, 무료라고는 하지만 500MB 한도가 있기 때문에 굳이 안만드는거 보다는 낫겠다 생각했습니다. (수많은 스팸댓글..)
 
 <div class="callout-box" data-callout="note">
 <div class="callout-box-title"><span class="callout-box-icon">🗒️</span>Supabase 무료  플랜</div>
@@ -227,8 +227,8 @@ grant execute on function public.is_current_admin() to anon, authenticated;
 
 
 ### UI
-![](/attachments/be_blog_spbs_4.png)
-![](/attachments/be_blog_spbs_5.png)
+<img src="/attachments/be_blog_spbs_4.png" alt="" />
+<img src="/attachments/be_blog_spbs_5.png" alt="" />
 ## Reference
 [Supabase Documentation, Auth](https://supabase.com/docs/guides/auth)
 [Supabase Documentation, Database](https://supabase.com/docs/guides/database/connecting-to-postgres)

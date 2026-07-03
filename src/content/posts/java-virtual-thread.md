@@ -11,7 +11,7 @@ description: "Virtual Thread 란? 버추얼 스레드(Virtual Thread)는 Java 21
 
 기존 Java의 스레드 모델은 Native Thread로, Java의 유저 스레드를 만들면 Java Native Interface(JNI)를 통해 커널 영역을 호출하여 OS가 커널 영역을 생성하고 1:1로 매핑하여 작업을 수행하는 형태였습니다.
 
-![](/attachments/cs_jvt_1.png)
+<img src="/attachments/cs_jvt_1.png" alt="" />
 
 문제는 이게 비싸다는 점인데, 하나당 메모리 `~2MB`,  생성시간 `~1ms`, 컨텍스트 스위칭 시간 `~100μs`가까이 나온다. 때문에 수천 개씩 못 만들고 스레드 풀로 개수를 제한해야 합니다.
 
@@ -19,7 +19,7 @@ description: "Virtual Thread 란? 버추얼 스레드(Virtual Thread)는 Java 21
 - 리액티브/비동기 (WebFlux, CompletableFuture) - 처리량은 좋지만 콜백 지옥, 디버깅 지옥, 함수 색칠 
 - Virtual Thread - 동기식 블로킹 코드를 그대로 쓰면서 처리량을 확보
 
-![](/attachments/cs_jvt_2.png)
+<img src="/attachments/cs_jvt_2.png" alt="" />
 Virtual Thread는 기존 Java의 스레드 모델과 달리, 플랫폼 스레드와 가상 스레드로 나뉩니다. 플랫폼 스레드 위에서 여러 Virtual Thread가 번갈아 가며 실행되는 형태로 동작하는데, 마치 커널 스레드와 유저 스레드가 매핑되는 형태와 비슷합니다.
 
 Virtual Thread는 메모리 `~10KB`, 생성시간 `~1μs`, 컨텍스트 스위칭 시간 `~10μs` 로, 비용이 저렴합니다.
@@ -27,7 +27,7 @@ Virtual Thread는 메모리 `~10KB`, 생성시간 `~1μs`, 컨텍스트 스위�
 <div class="callout-box" data-callout="note">
 <div class="callout-box-title"><span class="callout-box-icon">🗒️</span>스레드 계층</div>
 
-![](/attachments/cs_jvt_3.png)
+<img src="/attachments/cs_jvt_3.png" alt="" />
 **1. 네이티브 스레드 = OS 스레드 = 커널 스레드**
 운영체제 커널이 직접 만들고 스케줄링하는 "진짜" 스레드(ex. Linux의 pthread). CPU 코어 위에서 실제로 돌아가는 실행단위이고, 커널이 관리하기 때문에 비쌉니다.
 
@@ -48,17 +48,17 @@ JVM이 관리하는 경량 스레드. 네이티브 스레드와 1:1이 아니라
 
 
 # Virtual Thread의 구조
-![](/attachments/cs_jvt_5.png)
+<img src="/attachments/cs_jvt_5.png" alt="" />
 우선 Platform Thread의 기본 스케줄러는 `ForkJoinPool`을 사용하는데, 스케줄러는 platform thread pool을 관리하고, Virtual Thread의 작업 분배 역할을 합니다.
 
-![](/attachments/cs_jvt_7.png)
+<img src="/attachments/cs_jvt_7.png" alt="" />
 디버거를 통해 런타임의 Virtual Thread를 살펴보면,
 - `carrierThread`는 실제로 작업을 수행시키는 platform thread를 의미하며, `workQueue`를 가짐
 - `scheduler`라는 `ForkJoinPool`을 가짐. carrier thread의 pool 역할을 하고, 가상 스레드의 작업 스케줄링을 담당
 - `runContinuation`이라는 실제 작업 내용(Runnable)을 가짐
 
 ### Virtual Thread의 동작 원리
-![](/attachments/cs_jvt_6.png)
+<img src="/attachments/cs_jvt_6.png" alt="" />
 
 1. 실행 대기 Runnable Queue의 `runContinuation`을 carrier thread의 Work Queue에 마운트(unpark()) 합니다.
 2. Work Queue의 `runContinuation`들은 `ForkJoinPool`에 의해 **work stealing**(각 캐리어가 자기 작업 큐를 갖고, 놀고 있으면 다른 캐리어 큐에서 작업을 훔쳐옴) 방식으로 Carrier Thread에 의해 처리됩니다.
@@ -89,7 +89,7 @@ public Integer cpuBound() {
         return IntStream.range(0, 300000000).reduce(0, Integer::sum);
 }
 ```
-![](/attachments/cs_jvt_8.png)
+<img src="/attachments/cs_jvt_8.png" alt="" />
 I/O Bound 작업에서 **Virtual Thread의 성능은 Thread 모델에 비해 약 51% 이상 향상**되었습니다.
 
 우선 적절한 vuser 수를 설정하기 위해 테스트를 해보았는데, Ngrinder의 동시 요청 수를 계속해서 늘리다 보니 **vuser(가상 사용자 수)가 250이 넘어가는 시점부터 Thread 모델에서는 서버가 죽고 응답을 정상적으로 주지 못하는 상황**이 발생했습니다. 반면 virtual thread를 사용하는 서버는 동일한 vuser수를 장애 없이 정상 처리했습니다.
@@ -108,7 +108,7 @@ fun ioBound(): String? {
     }.await();
 }
 ```
-![](/attachments/cs_jvt_9.png)
+<img src="/attachments/cs_jvt_9.png" alt="" />
 코루틴 모델은 앞서 테스트한 스레드 모델보다 더 많은 처리량을 가지기 때문에, 이전 테스트의 vuser의 4배인 510으로 두고 I/O bound 요청 테스트를 진행하였습니다. 성능테스트 결과 **Virtual Thread의 성능이 Kotlin coroutine에 비해 37% 좋은 성능**을 보였습니다.
 
 <div class="callout-box" data-callout="note">
@@ -116,8 +116,8 @@ fun ioBound(): String? {
 
 Kotline Coroutine은 virtual thread이 JDK 자체적으로 지원하는 것과는 다르게, 코드 레벨에서 Kotlin 컴파일러의 마법으로 구현이 가능합니다. Coroutine은 **중단(suspend)했다가 나중에 그 지점부터 재개(resume)할 수 있는 함수**로, 협력적 멀티태스킹(cooperative multitasking)의 단위입니다.
 
-![](/attachments/cs_jvt_11.png)
-![](/attachments/cs_jvt_12.png)
+<div class="img-row"><img src="/attachments/cs_jvt_11.png" alt="" style="flex-grow:1.3613" /><img src="/attachments/cs_jvt_12.png" alt="" style="flex-grow:1.0863" /></div>
+
 간단하게 코루틴의 동작 원리를 살펴보면,
 1. suspend 함수를 Continuation과 지역변수를 가진 클래스로 만듭니다.
 2. 첫 번째 그림처럼 suspend 메서드 내에 호출하고 있는 suspend 함수가 2개의 지점이 있다면, suspend 함수 호출 부분을 기점으로 suspend point로 지정합니다.
@@ -142,11 +142,11 @@ public Mono<String> ioBound() {
           .flatMap(it -> requestSleep())
 }
 ```
-![](/attachments/cs_jvt_10.png)리액티브 스레드 모델 또한, vuser를 앞서 테스트한것의 4배인 510으로 두고 I/O bound 요청을 통해 진행하였습니다. 성능테스트 결과 Virtual Thread의 성능이 Reactive에 비해 111% 좋은 성능을 보였습니다.
+<img src="/attachments/cs_jvt_10.png" alt="" />리액티브 스레드 모델 또한, vuser를 앞서 테스트한것의 4배인 510으로 두고 I/O bound 요청을 통해 진행하였습니다. 성능테스트 결과 Virtual Thread의 성능이 Reactive에 비해 111% 좋은 성능을 보였습니다.
 
 Spring의 Reactive 프로그래밍 모델인 WebFlux는 Netty의 event loop 기반으로 동작합니다. Event loop가 중심에서 모든 요청을 처리하고, 요청 처리 구간을 callback으로 등록해놓고, worker 스레드 풀이 작업들을 처리하는 형태입니다. Worker 스레드가 작업을 처리하는 과정에서 I/O를 마주치게 되면 작업이 park 되면서 컨텍스트 스위칭이 발생합니다.
 
-![](/attachments/cs_jvt_13.png)  ![](/attachments/cs_jvt_14.png)
+<div class="img-row"><img src="/attachments/cs_jvt_13.png" alt="" style="flex-grow:1.3146" /><img src="/attachments/cs_jvt_14.png" alt="" style="flex-grow:2.0209" /></div>
 
 위 코드를 보면 동기로 짜여있던 코드는 직관적이었던 반면 reactive 프로그래밍으로 짜인 코드는 다소 파편화 되어 있는 모습입니다. if문이나 try/catch 구문들이 모두 메서드 단위로 분리되어 있기 때문인데, 이는 Java의 기본적인 syntax를 활용하기 어렵게 하여, 코드의 흐름을 이해하기 어렵게 만들 수 있습니다.
 

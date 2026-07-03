@@ -15,7 +15,7 @@
  *     node sync.mjs "/경로"   또는   OBSIDIAN_VAULT="/경로" node sync.mjs
  *   AI 요약: ANTHROPIC_API_KEY=... node sync.mjs
  */
-import { promises as fs } from "node:fs";
+import { promises as fs, readFileSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
@@ -29,6 +29,46 @@ const ATTACH_DIR = path.join(ROOT, "public/attachments");
 const CACHE_FILE = path.join(ROOT, ".summary-cache.json");
 const SKIP_DIRS = new Set([".git", ".obsidian", "_templates", "node_modules"]);
 const IMG_EXT = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
+
+// 이미지 파일 헤더에서 가로세로 비율(w/h) 판독. 한 줄 여러 장을 같은 높이로 정렬할 때 사용.
+// png/jpeg/gif/webp 지원, 판독 실패(svg/avif 등)는 null → 호출부에서 폴백.
+const _arCache = new Map();
+function aspectOf(file) {
+  if (_arCache.has(file)) return _arCache.get(file);
+  let ar = null;
+  try {
+    const b = readFileSync(file);
+    let w, h;
+    if (b.readUInt32BE(0) === 0x89504e47) {            // PNG
+      w = b.readUInt32BE(16); h = b.readUInt32BE(20);
+    } else if (b.toString("ascii", 0, 3) === "GIF") {  // GIF
+      w = b.readUInt16LE(6); h = b.readUInt16LE(8);
+    } else if (b[0] === 0xff && b[1] === 0xd8) {        // JPEG: SOF 마커 탐색
+      let o = 2;
+      while (o + 9 < b.length) {
+        if (b[o] !== 0xff) { o++; continue; }
+        const m = b[o + 1];
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) {
+          h = b.readUInt16BE(o + 5); w = b.readUInt16BE(o + 7); break;
+        }
+        o += 2 + b.readUInt16BE(o + 2);
+      }
+    } else if (b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP") {
+      const fmt = b.toString("ascii", 12, 16);
+      if (fmt === "VP8 ") { w = b.readUInt16LE(26) & 0x3fff; h = b.readUInt16LE(28) & 0x3fff; }
+      else if (fmt === "VP8L") {
+        const n = b.readUInt32LE(21);
+        w = (n & 0x3fff) + 1; h = ((n >> 14) & 0x3fff) + 1;
+      } else if (fmt === "VP8X") {
+        w = 1 + (b[24] | (b[25] << 8) | (b[26] << 16));
+        h = 1 + (b[27] | (b[28] << 8) | (b[29] << 16));
+      }
+    }
+    if (w > 0 && h > 0) ar = w / h;
+  } catch { /* 판독 실패 → null */ }
+  _arCache.set(file, ar);
+  return ar;
+}
 
 // LLM 요약 (Claude Haiku). ANTHROPIC_API_KEY 없으면 비활성 → 본문 앞부분 폴백.
 const AI_MODEL = "claude-haiku-4-5";
@@ -199,11 +239,34 @@ async function main() {
     // Shiki 언어 ID는 소문자라 대문자면 plaintext로 떨어진다.
     body = body.replace(/^(\s*`{3,}|\s*~{3,})([A-Za-z][\w+#-]*)/gm, (m, fence, lang) => fence + lang.toLowerCase());
 
-    // 2-1) 이미지 임베드 ![[img.ext|size]] → ![](/attachments/img.ext)
-    body = body.replace(/!\[\[([^\]|#]+?)(?:\|[^\]]*)?\]\]/g, (m, target) => {
-      const name = path.basename(target.trim());
-      if (IMG_EXT.test(name)) { usedAttachments.add(name); return `![](/attachments/${encodeURIComponent(name)})`; }
-      return ""; // 노트 임베드는 일단 제거(추후 처리)
+    // 2-1) 이미지 임베드 ![[img.ext|size]] → <img>. 사이즈(|260, |260x180)는 width/height로 반영.
+    //      한 줄에 여러 장이 붙어 있으면 .img-row 로 감싸 가로로 나란히 배치한다.
+    body = body.replace(/(?:!\[\[[^\]]*?\]\][ \t]*)+/g, (run) => {
+      const imgs = [];
+      for (const [, target, size] of run.matchAll(/!\[\[([^\]|#]+?)(?:\|([^\]]*))?\]\]/g)) {
+        const name = path.basename(target.trim());
+        if (!IMG_EXT.test(name)) continue; // 노트 임베드는 제거(추후 처리)
+        usedAttachments.add(name);
+        const src = `/attachments/${encodeURIComponent(name)}`;
+        const w = size && (size.trim().match(/^(\d+)/) || [])[1]; // 옵시디언 지정 폭(폴백용)
+        const ar = attachByName.has(name) ? aspectOf(attachByName.get(name)) : null; // 실제 가로세로 비율
+        imgs.push({ src, w, ar });
+      }
+      if (imgs.length === 0) return "";
+      // 한 장: 지정 폭을 그대로 반영(본문보다 크면 100%로 축소).
+      if (imgs.length === 1) {
+        const { src, w } = imgs[0];
+        return `<img src="${src}" alt=""${w ? ` width="${w}"` : ""} />`;
+      }
+      // 여러 장: flex-grow 를 '가로세로 비율'로 주면 → 같은 높이로 정렬되며 본문 너비를 꽉 채움.
+      //         비율 판독 실패 시 옵시디언 지정 폭으로 폴백.
+      const cells = imgs
+        .map(({ src, w, ar }) => {
+          const g = ar ? ar.toFixed(4) : w;
+          return `<img src="${src}" alt=""${g ? ` style="flex-grow:${g}"` : ""} />`;
+        })
+        .join("");
+      return `<div class="img-row">${cells}</div>`;
     });
 
     // 2-2) 위키링크 [[Note|alias]] → 발행 글이면 링크, 아니면 텍스트

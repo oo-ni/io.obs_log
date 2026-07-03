@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import { ClientRouter } from "astro:transitions";
 import { Font } from "astro:assets";
+import SpeedInsights from "@vercel/speed-insights/astro";
 import Sidebar from "../components/Sidebar.astro";
 import Socials from "../components/Socials.astro";
 interface Props { title: string; description?: string; sidebar?: boolean; image?: string; }
@@ -133,8 +134,36 @@ const nav = [
         vt.finished.finally(() => root.classList.remove("theme-vt"));
       }
 
+      // 이미지 라이트박스: 본문 이미지를 클릭하면 오버레이로 확대. (오버레이/ESC로 닫기)
+      function openLightbox(img: HTMLImageElement) {
+        const box = document.createElement("div");
+        box.className = "lightbox";
+        const big = document.createElement("img");
+        big.src = img.currentSrc || img.src;
+        big.alt = img.alt || "";
+        box.appendChild(big);
+        document.body.appendChild(box);
+        document.body.style.overflow = "hidden";
+        requestAnimationFrame(() => box.classList.add("open"));
+        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
+        const close = () => {
+          box.classList.remove("open");
+          document.body.style.overflow = "";
+          document.removeEventListener("keydown", onKey);
+          if (reduceMotion()) box.remove();
+          else box.addEventListener("transitionend", () => box.remove(), { once: true });
+        };
+        box.addEventListener("click", close);
+        document.addEventListener("keydown", onKey);
+      }
+
       document.addEventListener("click", (e) => {
         const target = e.target as HTMLElement;
+        // 링크로 감싸지 않은 본문 이미지 → 확대
+        if (target.tagName === "IMG" && target.closest(".prose") && !target.closest("a")) {
+          openLightbox(target as HTMLImageElement);
+          return;
+        }
         const themeBtn = target.closest?.("#themeToggle");
         if (themeBtn) {
           const ev = e as MouseEvent;
@@ -163,5 +192,6 @@ const nav = [
       window.addEventListener("scroll", toggleTopBtn, { passive: true });
       document.addEventListener("astro:page-load", toggleTopBtn);
     </script>
+    <SpeedInsights />
   </body>
 </html>
