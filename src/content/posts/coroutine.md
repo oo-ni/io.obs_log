@@ -18,12 +18,12 @@ description: "정의 서브루틴의 일반화 코루틴은 1958년 멜빈 콘�
 코루틴은 활용 언어에 따라 두 축으로 분류됩니다.
 
 <b>대칭(symmetric) vs 비대칭(asymmetric)</b>
-- **대칭**: 코루틴끼리 서로에게 직접 제어를 넘길 수 있습니다. 호출 계층이 X (Lua)
-- **비대칭**: 코루틴이 yield하면 **자기를 부른쪽(resumer)에게만** 제어를 돌려줍니다. 부모-자식 관계가 고정 (Python, Kotlin)
+- **대칭**: 코루틴끼리 서로에게 직접 제어를 넘길 수 있음. 호출 계층이 X (Lua)
+- **비대칭**: 코루틴이 yield하면 **자기를 부른쪽(resumer)에게만** 제어를 돌려줌. 부모-자식 관계가 고정 (Python, Kotlin)
 
 <b>스택리스(stackless) vs 스택풀(stackful)</b> ⭐️
-- **스택리스**: 코루틴이 **최상위 함수 본문에서만** 중단할 수 있으며, 중첩 호출 깊은 곳에서는 못 멈춥니다. 상태를 힙에 올린 **상태 머신 하나**로 표현합니다. 컴파일러가 변환합니다. (Python async, JS async/await, C# async, 코틀린 코루틴, Rust async)
-- **스택풀**: 코루틴이 **자기만의 완전한 스택**을 갖기에, 호출 깊이 상관없이 아무데서나 중단 가능합니다. 거의 스레드처럼 동작합니다. (Lua 코루틴, Ruby 파이버, Go 고루틴, 자바 버추얼 스레드)
+- **스택리스**: 코루틴이 **최상위 함수 본문에서만** 중단할 수 있으며, 중첩 호출 깊은 곳에서는 못 멈춤. 상태를 힙에 올린 **상태 머신 하나**로 표현. 컴파일러가 변환. (Python async, JS async/await, C# async, 코틀린 코루틴, Rust async)
+- **스택풀**: 코루틴이 **자기만의 완전한 스택**을 갖기에, 호출 깊이 상관없이 아무데서나 중단 가능. 거의 스레드처럼 동작. (Lua 코루틴, Ruby 파이버, Go 고루틴, 자바 버추얼 스레드)
 
 # 코루틴의 구성 요소
 JetBrains 공식 문서는 코루틴을 만들려면 다음의 4가지 재료가 필요하다고 명시합니다.
@@ -83,12 +83,17 @@ coroutineScope {         // 부모
 
 ### 전체 코드
 ```kotlin
-suspend fun loadUser() =           // 1. suspend — 일감 정의
-    withContext(Dispatchers.IO) {  // 4. 디스패처 — IO 사무실에서
-        coroutineScope {           // 3. 스코프 — 이 안의 코루틴 수명 관리
-            val profile = async { api.getProfile() }  // 2. 빌더(async) — 결과 받는 코루틴
-            val posts   = async { api.getPosts() }    // 2. 병렬로 하나 더
-            User(profile.await(), posts.await())      // 둘 다 수확해서 반환
+// [1] 네트워크 응답을 기다리는 동안 스레드를 차단(Blocking)x, 잠시 양보(Suspend)o
+suspend fun loadUser() =
+	// [2] 최적 백그라운드 스레드 풀로 작업 공간 전환
+    withContext(Dispatchers.IO) {
+	    // [3] 이 안의 async들이 '전부' 완료될 때까지 밖으로 못나감 (에러/취소 전파)
+        coroutineScope {
+			// [4] API 요청 날려두고 결과 대기표(Deferred)만 즉시 받음 아래 posts와 병렬 실행
+            val profile = async { api.getProfile() }
+            val posts   = async { api.getPosts() }
+            // [5] 두 API 응답 모두 기다렸다가, 데이터가 확보되면 뭉쳐서 User 객체로 반환
+            User(profile.await(), posts.await())
         }
     }
 ```
@@ -114,7 +119,7 @@ fun myFunction(continuation: Continuation<Unit>): Any
 ```
 반환 타입이 `Any`인 이유는 중단되면 실제 값 대신 COROUTINE_SUSPEND 마커를 변환할 수 있기 때문입니다. suspend 함수마다 컨티뉴에이션을 갖기 때문에 suspend 함수 안에서만 호출이 가능합니다(함수의 색).
 
-그리고 함수 본문은 중단점으 기준으로 상태가 나뉘어, `label`을 보고 해당 상태로 진입하는 형태로 변환됩니다.
+그리고 함수 본문은 중단점을 기준으로 상태가 나뉘어, `label`을 보고 해당 상태로 진입하는 형태로 변환됩니다.
 ```kotlin
 fun myFunction(continuation: Continuation<Unit>): Any {
     val cont = continuation as? MyFunctionContinuation

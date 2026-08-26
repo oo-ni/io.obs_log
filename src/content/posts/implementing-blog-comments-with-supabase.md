@@ -230,7 +230,7 @@ grant execute on function public.is_current_admin() to anon, authenticated;
 <img src="/attachments/be_blog_spbs_4.png" alt="" />
 <img src="/attachments/be_blog_spbs_5.png" alt="" />
 ## Reference
-[Supabase Documentation, Auth](https://supabase.com/docs/guides/auth)
-[Supabase Documentation, Database](https://supabase.com/docs/guides/database/connecting-to-postgres)
-[Jane_Log, Supabase란 무엇인가!](https://velog.io/@hamjw0122/Supabase%EB%9E%80-%EB%AC%B4%EC%97%87%EC%9D%B8%EA%B0%80)
-[Logto, AI 스타트업이 Supabase 를 선택하는 이유와 한계점](https://blog.logto.io/ko/supabase-ai-limitation)
+- [Supabase Documentation, Auth](https://supabase.com/docs/guides/auth)
+- [Supabase Documentation, Database](https://supabase.com/docs/guides/database/connecting-to-postgres)
+- [Jane_Log, Supabase란 무엇인가!](https://velog.io/@hamjw0122/Supabase%EB%9E%80-%EB%AC%B4%EC%97%87%EC%9D%B8%EA%B0%80)
+- [Logto, AI 스타트업이 Supabase 를 선택하는 이유와 한계점](https://blog.logto.io/ko/supabase-ai-limitation)
