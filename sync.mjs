@@ -239,8 +239,14 @@ async function main() {
     // Shiki 언어 ID는 소문자라 대문자면 plaintext로 떨어진다.
     body = body.replace(/^(\s*`{3,}|\s*~{3,})([A-Za-z][\w+#-]*)/gm, (m, fence, lang) => fence + lang.toLowerCase());
 
+    // 2-0) 옵시디언 콜아웃 → 노션풍 콜아웃 HTML.
+    //      이미지 변환보다 먼저 실행: 콜아웃 본문을 평문으로 펼쳐야, 뒤에서 이미지를
+    //      빈 줄로 감싸도 `>` 인용 그룹핑이 깨지지 않는다.
+    body = transformCallouts(body);
+
     // 2-1) 이미지 임베드 ![[img.ext|size]] → <img>. 사이즈(|260, |260x180)는 width/height로 반영.
     //      한 줄에 여러 장이 붙어 있으면 .img-row 로 감싸 가로로 나란히 배치한다.
+    //      raw HTML 뒤 텍스트가 마크다운으로 처리되도록 앞뒤 빈 줄로 분리한다(**굵게**·`코드` 인식).
     body = body.replace(/(?:!\[\[[^\]]*?\]\][ \t]*)+/g, (run) => {
       const imgs = [];
       for (const [, target, size] of run.matchAll(/!\[\[([^\]|#]+?)(?:\|([^\]]*))?\]\]/g)) {
@@ -256,7 +262,7 @@ async function main() {
       // 한 장: 지정 폭을 그대로 반영(본문보다 크면 100%로 축소).
       if (imgs.length === 1) {
         const { src, w } = imgs[0];
-        return `<img src="${src}" alt=""${w ? ` width="${w}"` : ""} />`;
+        return `\n\n<img src="${src}" alt=""${w ? ` width="${w}"` : ""} />\n\n`;
       }
       // 여러 장: flex-grow 를 '가로세로 비율'로 주면 → 같은 높이로 정렬되며 본문 너비를 꽉 채움.
       //         비율 판독 실패 시 옵시디언 지정 폭으로 폴백.
@@ -266,7 +272,7 @@ async function main() {
           return `<img src="${src}" alt=""${g ? ` style="flex-grow:${g}"` : ""} />`;
         })
         .join("");
-      return `<div class="img-row">${cells}</div>`;
+      return `\n\n<div class="img-row">${cells}</div>\n\n`;
     });
 
     // 2-2) 위키링크 [[Note|alias]] → 발행 글이면 링크, 아니면 텍스트
@@ -276,9 +282,6 @@ async function main() {
       const slug = slugByName.get(name);
       return slug ? `[${display}](/posts/${slug})` : display;
     });
-
-    // 2-3) 옵시디언 콜아웃 → 노션풍 콜아웃 HTML
-    body = transformCallouts(body);
 
     // 3) frontmatter 정규화
     const created = field(p.fm, "created") || "";

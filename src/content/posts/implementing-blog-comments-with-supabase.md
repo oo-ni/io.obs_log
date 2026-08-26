@@ -44,14 +44,26 @@ Supabase는 오픈소스 기반 BaaS(Backend-as-a-Service) 플랫폼입니다.
 대놓고 프론트에 집중하라고 만든 기능인 만큼, API 개발부터 DB 구축까지 단일 플랫폼에서 모두 지원해줍니다. 제일 맘에 들었던건 간편한 Authentication 기능. 이 부분은 아래에서 추가로 설명하겠습니다.
 
 Vercel KV 같은 Redis 기반 키-값 저장소도 고려했지만, 결국 댓글 데이터는 유저 데이터가 포함될 수밖에 없는 구조라 RDB로 관리하는게 복잡도가 낮아보여 Supabase Postsgre를 선택했습니다.
+
+
 <img src="/attachments/be_blog_spbs_3.png" alt="" />
+
+
 
 
 # 인증
 댓글 수정, 삭제 기능은 있어야 할 것 같아서, 누가 썼는지를 보장하기 위해 인증 시스템을 도입해야 했습니다.
 Supabase에 등록된 소셜로그인 Providers 중 Google과 Kakao, GitHub를 선택하여 소셜로그인을 구현하기로 했습니다.
+
+
 <img src="/attachments/be_blog_spbs_1.png" alt="" />
+
+
+
+
 <img src="/attachments/be_blog_spbs_2.png" alt="" />
+
+
 **Supabase Auth** 기능을 활용하면, 코드 몇 줄로 OAuth 흐름을 구현할 수 있습니다.
 
 Auth 클라이언트를 설정하고,
@@ -227,8 +239,16 @@ grant execute on function public.is_current_admin() to anon, authenticated;
 
 
 ### UI
+
+
 <img src="/attachments/be_blog_spbs_4.png" alt="" />
+
+
+
+
 <img src="/attachments/be_blog_spbs_5.png" alt="" />
+
+
 ## Reference
 - [Supabase Documentation, Auth](https://supabase.com/docs/guides/auth)
 - [Supabase Documentation, Database](https://supabase.com/docs/guides/database/connecting-to-postgres)
