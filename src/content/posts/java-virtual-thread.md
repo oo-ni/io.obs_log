@@ -32,32 +32,27 @@ Virtual Thread는 기존 Java의 스레드 모델과 달리, 플랫폼 스레드
 
 Virtual Thread는 메모리 `~10KB`, 생성시간 `~1μs`, 컨텍스트 스위칭 시간 `~10μs` 로, 비용이 저렴합니다.
 
-<div class="callout-box" data-callout="note">
-<div class="callout-box-title"><span class="callout-box-icon">🗒️</span>스레드 계층</div>
-
-
+>[!스레드 계층 ]
+>
 
 <img src="/attachments/cs_jvt_3.png" alt="" />
 
 
-**1. 네이티브 스레드 = OS 스레드 = 커널 스레드**
-운영체제 커널이 직접 만들고 스케줄링하는 "진짜" 스레드(ex. Linux의 pthread). CPU 코어 위에서 실제로 돌아가는 실행단위이고, 커널이 관리하기 때문에 비쌉니다.
-
-**2. 플랫폼 스레드 (Platform Thread)**
-`java.lang.Thread`가 네이티브 스레드를 1:1로 얇게 감싼 것. 자바에서 `new Thread()`로 만들던 그 스레드가 전부 플랫폼 스레드 입니다.
-
-- Q. 그럼 왜 갑자기 "플랫폼 스레드"라는 이름이 생겼지?
-- A. Java 21에서 버추얼 스레드가 등장하면서 Thread가 두 종류로 나뉘었기 때문에 구분 목적.
-
-**3. 캐리어 스레드 (Carrier Thread)** - 타입이 아니라 역할
-캐리어 스레드는 별도의 스레드 종류가 아니라, **버추얼 스레드를 실행 중인 플랫폼 스레드**를 부르는 이름입니다. VT를 등에 업고(carry) 있어서 캐리어라고 부르며, VT가 언마운트되면 그 플랫폼 스레드는 캐리어 역할을 잠시 내려놓고 다른 VT를 태웁니다.
-
-**4. 버추얼 스레드 (Virtual Thread)**
-JVM이 관리하는 경량 스레드. 네이티브 스레드와 1:1이 아니라 소수의 캐리어 위에 M:N으로 얹힙니다. 타입은 여전히 `java.lang.Thread`라서 코드 호환이 되고, 스택이 힙에 저장되기에 수십만 개 생성이 가능합니다.
-
-
-</div>
-
+><b>1. 네이티브 스레드 = OS 스레드 = 커널 스레드</b>
+>운영체제 커널이 직접 만들고 스케줄링하는 "진짜" 스레드(ex. Linux의 pthread). CPU 코어 위에서 실제로 돌아가는 실행단위이고, 커널이 관리하기 때문에 비쌉니다.
+>
+>**2. 플랫폼 스레드 (Platform Thread)**
+>`java.lang.Thread`가 네이티브 스레드를 1:1로 얇게 감싼 것. 자바에서 `new Thread()`로 만들던 그 스레드가 전부 플랫폼 스레드 입니다.
+>
+>- Q. 그럼 왜 갑자기 "플랫폼 스레드"라는 이름이 생겼지?
+>- A. Java 21에서 버추얼 스레드가 등장하면서 Thread가 두 종류로 나뉘었기 때문에 구분 목적.
+>
+>**3. 캐리어 스레드 (Carrier Thread)** - 타입이 아니라 역할
+>캐리어 스레드는 별도의 스레드 종류가 아니라, **버추얼 스레드를 실행 중인 플랫폼 스레드**를 부르는 이름입니다. VT를 등에 업고(carry) 있어서 캐리어라고 부르며, VT가 언마운트되면 그 플랫폼 스레드는 캐리어 역할을 잠시 내려놓고 다른 VT를 태웁니다.
+>
+>**4. 버추얼 스레드 (Virtual Thread)**
+>JVM이 관리하는 경량 스레드. 네이티브 스레드와 1:1이 아니라 소수의 캐리어 위에 M:N으로 얹힙니다. 타입은 여전히 `java.lang.Thread`라서 코드 호환이 되고, 스택이 힙에 저장되기에 수십만 개 생성이 가능합니다.
+>
 
 # Virtual Thread의 구조
 
@@ -84,7 +79,7 @@ JVM이 관리하는 경량 스레드. 네이티브 스레드와 1:1이 아니라
 
 
 
-1. 실행 대기 Runnable Queue의 `runContinuation`을 carrier thread의 Work Queue에 마운트(`unpark()`) 합니다.
+1. 실행 대기 Runnable Queue의 `runContinuation`을 carrier thread의 Work Queue에 마운트(unpark()) 합니다.
 2. Work Queue의 `runContinuation`들은 `ForkJoinPool`에 의해 **work stealing**(각 캐리어가 자기 작업 큐를 갖고, 놀고 있으면 다른 캐리어 큐에서 작업을 훔쳐옴) 방식으로 Carrier Thread에 의해 처리됩니다.
 3. 처리되던 `runContinuation`들은 블로킹 작업(I/O), Sleep으로 인한 interrupt나 작업 완료 시, Work Queue에서 언마운트(pop)되어, `park()` 과정에 의해 다시 힙 메모리로 되돌아갑니다.
 4. carrier는 즉시 다른 버추얼 스레드를 실행합니다.
