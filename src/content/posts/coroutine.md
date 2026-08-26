@@ -10,7 +10,11 @@ description: "정의 서브루틴의 일반화 코루틴은 1958년 멜빈 콘�
 코루틴은 1958년 멜빈 콘웨이가 만든, CS에서 가장 오래된 개념 중 하나입니다. 서브루틴(=함수)을 일반화한 것으로:
 - 서브루틴: 진입점 1개, 끝까지 실행 → return 1번. 호출되면 호출자에게 종속(caller-callee)
 - 코루틴: 진입/탈출 지점이 여러 개. 실행 도중 제어를 양보하고, 그 시점의 로컬 상태를 보존한 채 멈췄다가(suspend), 재개되면 그 자리부터 이어감
+
+
 <img src="/attachments/cs_crt_1.png" alt="" />
+
+
 
 그래서 **협력적(cooperative) 멀티태스킹**이라고 부릅니다. 강제로 쫓겨나는게 아니라 스스로 양보 지점에서 제어권을 넘기기 때문입니다. 버추얼 스레드 스케줄링이나 asyncio 이벤트 루프 등이 이런 방식인데, 둘 다 코루틴의 일종이거나 그 위에서 만들어진 것이라 할 수 있습니다.
 
@@ -37,7 +41,11 @@ suspend fun main() = withContext(Dispatchers.Default) {   // 스코프 + 디스�
 	launch { greet() }   // 빌더 + suspend 함수
 }
 ```
+
+
 <img src="/attachments/cs_crt_2.png" alt="" />
+
+
 ### 1. suspend 함수 (WHAT)
 가장 기본 단위로, `suspend` 키워드를 붙이면 그 함수는 중단/재개가 가능해집니다.
 ```kotlin
@@ -83,12 +91,17 @@ coroutineScope {         // 부모
 
 ### 전체 코드
 ```kotlin
-suspend fun loadUser() =           // 1. suspend — 일감 정의
-    withContext(Dispatchers.IO) {  // 4. 디스패처 — IO 사무실에서
-        coroutineScope {           // 3. 스코프 — 이 안의 코루틴 수명 관리
-            val profile = async { api.getProfile() }  // 2. 빌더(async) — 결과 받는 코루틴
-            val posts   = async { api.getPosts() }    // 2. 병렬로 하나 더
-            User(profile.await(), posts.await())      // 둘 다 수확해서 반환
+// [1] 네트워크 응답을 기다리는 동안 스레드를 차단(Blocking)x, 잠시 양보(Suspend)o
+suspend fun loadUser() =
+	// [2] 최적 백그라운드 스레드 풀로 작업 공간 전환
+    withContext(Dispatchers.IO) {
+	    // [3] 이 안의 async들이 '전부' 완료될 때까지 밖으로 못나감 (에러/취소 전파)
+        coroutineScope {
+			// [4] API 요청 날려두고 결과 대기표(Deferred)만 즉시 받음 아래 posts와 병렬 실행
+            val profile = async { api.getProfile() }
+            val posts   = async { api.getPosts() }
+            // [5] 두 API 응답 모두 기다렸다가, 데이터가 확보되면 뭉쳐서 User 객체로 반환
+            User(profile.await(), posts.await())
         }
     }
 ```
@@ -114,7 +127,7 @@ fun myFunction(continuation: Continuation<Unit>): Any
 ```
 반환 타입이 `Any`인 이유는 중단되면 실제 값 대신 COROUTINE_SUSPEND 마커를 변환할 수 있기 때문입니다. suspend 함수마다 컨티뉴에이션을 갖기 때문에 suspend 함수 안에서만 호출이 가능합니다(함수의 색).
 
-그리고 함수 본문은 중단점으 기준으로 상태가 나뉘어, `label`을 보고 해당 상태로 진입하는 형태로 변환됩니다.
+그리고 함수 본문은 중단점을 기준으로 상태가 나뉘어, `label`을 보고 해당 상태로 진입하는 형태로 변환됩니다.
 ```kotlin
 fun myFunction(continuation: Continuation<Unit>): Any {
     val cont = continuation as? MyFunctionContinuation

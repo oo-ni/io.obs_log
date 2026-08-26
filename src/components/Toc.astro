@@ -1,0 +1,21 @@
+---
+// 우측 목차(Notion 스타일). render()가 주는 headings(자동 생성 id 포함)를 그대로 사용.
+interface Props {
+  headings: { depth: number; slug: string; text: string }[];
+}
+const { headings } = Astro.props;
+// 본문은 #, ##, ### 를 섹션 헤더로 사용 → depth 1~3만 노출
+const items = headings.filter((h) => h.depth >= 1 && h.depth <= 3 && h.text.trim());
+---
+{items.length > 1 && (
+  <nav class="toc" aria-label="목차" data-pagefind-ignore>
+    <p class="toc-title">On this page</p>
+    <ul class="toc-list">
+      {items.map((h) => (
+        <li class={`toc-item d${h.depth}`}>
+          <a href={`#${h.slug}`} data-toc={h.slug}>{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

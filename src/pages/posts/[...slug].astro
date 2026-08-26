@@ -2,6 +2,7 @@
 import { getCollection, render } from "astro:content";
 import Base from "../../layouts/Base.astro";
 import Comments from "../../components/Comments.astro";
+import Toc from "../../components/Toc.astro";
 
 export async function getStaticPaths() {
   // 최신순 정렬 → i-1이 더 최신(다음 글), i+1이 더 오래된(이전 글)
@@ -15,11 +16,12 @@ export async function getStaticPaths() {
 }
 
 const { post, prev, next } = Astro.props;
-const { Content } = await render(post);
+const { Content, headings } = await render(post);
 const fmt = (d?: Date) => (d ? d.toISOString().slice(0, 10).replace(/-/g, ".") : "");
 const base = import.meta.env.BASE_URL;
 ---
 <Base title={post.data.title} description={post.data.description} sidebar={false}>
+  <Toc headings={headings} />
   <a class="back-link" href={base}>← Go Back</a>
   <article class="prose" data-pagefind-body>
     <div>
@@ -89,4 +91,29 @@ const base = import.meta.env.BASE_URL;
     });
   }
   document.addEventListener("astro:page-load", addCopyButtons);
+
+  // 우측 목차 스크롤스파이: 현재 화면 상단을 지난 마지막 헤딩을 활성화.
+  // window scroll 리스너는 모듈 로드 시 1회만 등록하고, DOM은 매번 라이브로 조회(View Transitions 안전).
+  let tocLinks: HTMLAnchorElement[] = [];
+  let tocHeads: HTMLElement[] = [];
+  function refreshToc() {
+    const toc = document.querySelector(".toc");
+    tocLinks = toc ? Array.from(toc.querySelectorAll<HTMLAnchorElement>("a[data-toc]")) : [];
+    const ids = new Set(tocLinks.map((a) => a.getAttribute("data-toc")));
+    tocHeads = Array.from(
+      document.querySelectorAll<HTMLElement>(".prose :is(h1, h2, h3)[id]")
+    ).filter((h) => ids.has(h.id));
+    updateActiveToc();
+  }
+  function updateActiveToc() {
+    if (!tocHeads.length) return;
+    let cur = tocHeads[0];
+    for (const h of tocHeads) {
+      if (h.getBoundingClientRect().top <= 100) cur = h; // sticky 헤더 높이만큼 오프셋
+      else break;
+    }
+    for (const a of tocLinks) a.classList.toggle("active", a.getAttribute("data-toc") === cur.id);
+  }
+  window.addEventListener("scroll", updateActiveToc, { passive: true });
+  document.addEventListener("astro:page-load", refreshToc);
 </script>

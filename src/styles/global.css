@@ -236,14 +236,14 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
 .tag:hover { color: var(--accent); }
 
 /* ── 글 본문 (prose) — Obsidian 읽기뷰 간격에 맞춤 ── */
-.prose { font-family: var(--font-serif); }
+.prose { font-family: var(--font-serif); font-size: .95rem; }
 /* 제목·소제목은 고딕(Pretendard) — Medium 느낌 */
 .prose :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-sans); }
 .prose h1.title { font-size: 1.9rem; font-weight: 700; margin: 0 0 .4rem; line-height: 1.35; }
 .prose .post-meta { color: var(--muted-foreground); font-size: .85rem; margin-bottom: 2.5rem; }
 
-/* 문단: 줄 간격 2.0, 문단 사이 1em */
-.prose p { line-height: 2.0; margin-block-start: 0; margin-block-end: 1em; }
+/* 문단: 줄 간격 2.1, 문단 사이 1em */
+.prose p { line-height: 2.1; margin-block-start: 0; margin-block-end: 1em; }
 
 /* 헤더(본문 내): 위 1.4em + padding 1.2em, 아래 0.4em (제목 .title 제외) */
 .prose :is(h1, h2, h3, h4, h5, h6):not(.title) {
@@ -254,9 +254,9 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
 .prose h3 { font-size: 1.2rem; }
 .prose h4 { font-size: 1.05rem; }
 
-/* 리스트: 줄 간격 1.7, 항목 사이 0.1em, 최상위 항목 0.5em */
-.prose ul, .prose ol { line-height: 1.7; margin-block-start: .2em; margin-block-end: .2em; padding-left: 1.4em; }
-.prose li { line-height: 1.7; margin-block-end: .1em; }
+/* 리스트: 줄 간격 1.8, 항목 사이 0.1em, 최상위 항목 0.5em */
+.prose ul, .prose ol { line-height: 1.8; margin-block-start: .2em; margin-block-end: .2em; padding-left: 1.4em; }
+.prose li { line-height: 1.8; margin-block-end: .1em; }
 .prose ul:not(li ul) > li, .prose ol:not(li ol) > li { margin-block-end: .5em; }
 .prose li > ul, .prose li > ol { margin-block-start: .3em; }
 .prose ul:not(li ul), .prose ol:not(li ol) { margin-block-end: 1.5em; }
@@ -337,7 +337,7 @@ html[data-theme="dark"] .prose .code-copy {
 .prose .callout-box-title:not(:last-child) { margin-bottom: .5rem; }
 .prose .callout-box > :not(.callout-box-title) { margin-block-start: 0; }
 .prose .callout-box > :last-child { margin-block-end: 0; }
-.prose .callout-box p { line-height: 1.7; }
+.prose .callout-box p { line-height: 1.8; }
 /* 타입별 강조색 */
 .prose .callout-box[data-callout="note"]      { --cb-accent: #448aff; }
 .prose .callout-box[data-callout="info"]      { --cb-accent: #00b8d4; }
@@ -364,6 +364,27 @@ html[data-theme="dark"] .prose .code-copy {
 
 .prose blockquote { border-left: 3px solid var(--accent); margin: 1.3rem 0; padding: .1rem 1rem; color: var(--muted-foreground); font-style: italic; }
 .prose img { border-radius: 6px; }
+/* ── 우측 목차 (Notion 스타일 ToC) ── */
+/* 가운데 정렬된 본문(48rem) 오른쪽 여백에 고정 배치. 폭이 부족한 화면에선 숨김 */
+.toc {
+  position: fixed; top: 6.5rem;
+  left: calc(50% + var(--maxw-prose) / 2 + 1.5rem);
+  width: 16rem; max-height: calc(100vh - 9rem); overflow-y: auto;
+  font-family: var(--font-app);
+}
+.toc::-webkit-scrollbar { width: 0; }
+.toc-title { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted-foreground); margin: 0 0 .6rem; padding-left: .85rem; }
+.toc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border-left: 1px solid var(--border); }
+.toc-item a {
+  display: block; font-size: .8rem; line-height: 1.4; color: var(--muted-foreground);
+  text-decoration: none; padding: .3rem .85rem; margin-left: -1px;
+  border-left: 2px solid transparent; transition: color .15s, border-color .15s;
+}
+.toc-item a:hover { color: var(--foreground); }
+.toc-item a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+.toc-item.d2 a { padding-left: 1.6rem; }
+.toc-item.d3 a { padding-left: 2.35rem; font-size: .76rem; }
+@media (max-width: 1359px) { .toc { display: none; } }
 /* ── 이전/다음 글 네비게이션 ── */
 .post-nav {
   display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
