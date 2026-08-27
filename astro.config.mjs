@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig, fontProviders } from 'astro/config';
 import remarkMath from 'remark-math';
+import remarkBreaks from 'remark-breaks';
 import rehypeKatex from 'rehype-katex';
 
 // https://astro.build/config
@@ -9,7 +10,8 @@ export default defineConfig({
   // 펜스 코드블록(```java 등)은 Shiki로 언어별 구문강조. 다크/라이트 듀얼 테마.
   markdown: {
     // 수학 공식: $...$ (인라인) / $$...$$ (블록) → KaTeX 로 렌더 (Notion 스타일)
-    remarkPlugins: [remarkMath],
+    // remarkBreaks: 옵시디언처럼 엔터 한 번(단일 개행)을 그대로 <br> 줄바꿈으로 처리
+    remarkPlugins: [remarkMath, remarkBreaks],
     rehypePlugins: [rehypeKatex],
     syntaxHighlight: "shiki",
     // defaultColor:false → 토큰에 --shiki-light/--shiki-dark 변수만 출력.

@@ -250,9 +250,12 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
   line-height: 1.6; padding-top: 1.2em;
   margin-block-start: 1.4em; margin-block-end: .4em;
 }
+.prose h1:not(.title) { font-size: 1.7rem; padding-top: .6em; margin-block-start: .9em; margin-block-end: .3em; }
 .prose h2 { font-size: 1.45rem; }
 .prose h3 { font-size: 1.2rem; }
-.prose h4 { font-size: 1.05rem; }
+.prose h4 { font-size: 1.15rem; }
+.prose h5 { font-size: .95rem; font-weight: 700; color: var(--foreground); }
+.prose h6 { font-size: .9rem; color: var(--muted-foreground); }
 
 /* 리스트: 줄 간격 1.8, 항목 사이 0.1em, 최상위 항목 0.5em */
 .prose ul, .prose ol { line-height: 1.8; margin-block-start: .2em; margin-block-end: .2em; padding-left: 1.4em; }
@@ -310,7 +313,9 @@ html[data-theme="dark"] .prose pre.astro-code span { color: var(--shiki-dark); }
 /* 다크모드: --border 가 주황색이라, 프레임 테두리는 중성색으로 교체 */
 html[data-theme="dark"] .prose pre.astro-code,
 html[data-theme="dark"] .prose img,
-html[data-theme="dark"] .prose .code-copy {
+html[data-theme="dark"] .prose .code-copy,
+html[data-theme="dark"] .prose th,
+html[data-theme="dark"] .prose td {
   border-color: color-mix(in srgb, var(--foreground) 14%, transparent);
 }
 /* 요약 콜아웃: 글 상단에 description을 박스로 노출 (AI 생성/직접 작성 모두) */
@@ -364,6 +369,16 @@ html[data-theme="dark"] .prose .code-copy {
 
 .prose blockquote { border-left: 3px solid var(--accent); margin: 1.3rem 0; padding: .1rem 1rem; color: var(--muted-foreground); font-style: italic; }
 .prose img { border-radius: 6px; }
+
+/* 표: 셀마다 구분선(테마 컬러) + 넉넉한 padding. 헤더는 가운데, 본문 셀은 왼쪽 정렬.
+   넓은 표는 content 폭까지 늘어나되 본문을 넘으면 가로 스크롤(GitHub 방식). */
+.prose table {
+  display: block; width: max-content; max-width: 100%; overflow-x: auto;
+  border-collapse: collapse; margin: 1.75em 0; font-size: .9rem; line-height: 1.7;
+}
+.prose th, .prose td { border: 1px solid var(--border); padding: .55rem .85rem; vertical-align: top; }
+.prose thead th { background: var(--muted); font-family: var(--font-sans); font-weight: 700; text-align: center; }
+.prose tbody td { text-align: left; }
 /* ── 우측 목차 (Notion 스타일 ToC) ── */
 /* 가운데 정렬된 본문(48rem) 오른쪽 여백에 고정 배치. 폭이 부족한 화면에선 숨김 */
 .toc {
