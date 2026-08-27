@@ -11,7 +11,6 @@ description: "회사 업무, 개인 프로젝트, 문서 정리, 기술 공부 �
 ## 1. Tokenization - 모델은 글자를 모른다
 
 <div class="callout-box" data-callout="note">
-<div class="callout-box-title"><span class="callout-box-icon">🗒️</span>&lt;br&gt;</div>
 
 사용자의 프롬프트를 LLM이 이해할 수 있는 최소 단위인 <b>토큰(Token)</b>으로 분리하고, 각 토큰에 **고유한 ID를 매핑**하는 단계
 
@@ -128,7 +127,6 @@ ULM은 이처럼 확률을 기반으로 다양한 분절 조합을 평가해 최
 ## 2. Embedding - 숫자에 의미 심기
 
 <div class="callout-box" data-callout="note">
-<div class="callout-box-title"><span class="callout-box-icon">🗒️</span>&lt;br&gt;</div>
 
 토큰화된 정수 ID를 의미를 가진 다차원 공간의 <b>좌표</b>(벡터)로 변환하는 단계
 
@@ -202,7 +200,6 @@ i       : 차원 인덱스
 ```
 
 <div class="callout-box" data-callout="note">
-<div class="callout-box-title"><span class="callout-box-icon">🗒️</span>&lt;br&gt;</div>
 
 최신 모델은 조금 다릅니다. 요즘 모델(Llama, Gemini 계열 등)은 절대 위치를 더하는 대신 <b>RoPE(Rotary Positional Embedding)</b> 처럼 벡터를 회전시켜 상대적 위치 관계를 인코딩하는 방식을 씁니다. 학습 때보다 긴 문맥으로 확장하기 유리하기 때문이며, 컨텍스트 윈도우가 계속 늘어나는 이유 중 하나입니다.
 
@@ -290,7 +287,6 @@ Attention Is All You Need 논문에서 Transformer는 **인코더**와 **디코�
 ## 5. Prediction - 다음 단어 예측
 
 <div class="callout-box" data-callout="note">
-<div class="callout-box-title"><span class="callout-box-icon">🗒️</span>&lt;br&gt;</div>
 
 문맥을 파악한 최종 벡터를 바탕으로 다음에 올 확률이 가장 높은 단어(토큰)을 예측하는 단계
 

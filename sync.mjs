@@ -167,18 +167,29 @@ function transformCallouts(md) {
     const head = lines[i].match(/^>\s*\[!(\w+)\]([+-]?)\s*(.*)$/);
     if (!head) { out.push(lines[i]); continue; }
     const type = head[1].toLowerCase();
-    const title = head[3].trim() || (type.charAt(0).toUpperCase() + type.slice(1));
+    // 제목: `<br>`(빈 제목 용도) 는 제거. 남은 게 없으면 제목줄 자체를 생략(제목 없는 콜아웃).
+    const title = head[3].replace(/<br\s*\/?>/gi, "").trim();
     // 이어지는 인용 라인(`>`)을 본문으로 수집
     const bodyLines = [];
     let j = i + 1;
     for (; j < lines.length && /^>/.test(lines[j]); j++) {
       bodyLines.push(lines[j].replace(/^>\s?/, ""));
     }
+    // 옵시디언에서 본문에 `>`를 안 붙인 경우: 헤더 바로 다음의 비인용 문단(빈 줄/다음 블록 전까지)도
+    // 콜아웃 본문으로 흡수 → `>[!note] <br>` + 다음 줄 텍스트 = 제목 없는 콜아웃 박스 안의 본문.
+    if (bodyLines.length === 0) {
+      for (; j < lines.length; j++) {
+        if (lines[j].trim() === "" || /^\s*(#|>|`{3,}|~{3,})/.test(lines[j])) break;
+        bodyLines.push(lines[j]);
+      }
+    }
     i = j - 1;
     const icon = CALLOUT_ICONS[type] || CALLOUT_ICONS.note;
     if (out.length && out[out.length - 1].trim() !== "") out.push("");
     out.push(`<div class="callout-box" data-callout="${type}">`);
-    out.push(`<div class="callout-box-title"><span class="callout-box-icon">${icon}</span>${escapeHtml(title)}</div>`);
+    if (title) {
+      out.push(`<div class="callout-box-title"><span class="callout-box-icon">${icon}</span>${escapeHtml(title)}</div>`);
+    }
     if (bodyLines.some((l) => l.trim() !== "")) {
       out.push("");
       out.push(...bodyLines);
