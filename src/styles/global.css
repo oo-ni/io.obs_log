@@ -236,7 +236,9 @@ main { flex: 1; padding: 2.5rem 0 4rem; }
 .tag:hover { color: var(--accent); }
 
 /* ── 글 본문 (prose) — Obsidian 읽기뷰 간격에 맞춤 ── */
-.prose { font-family: var(--font-serif); font-size: .95rem; }
+.prose { font-family: var(--font-serif); font-size: .95rem; font-weight: 300; }
+/* 본문 300(Light)이라 strong의 기본값 bolder(→400)로는 약함 → 강조는 700 절대값으로 고정 */
+.prose strong, .prose b { font-weight: 700; }
 /* 제목·소제목은 고딕(Pretendard) — Medium 느낌 */
 .prose :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-sans); }
 .prose h1.title { font-size: 1.9rem; font-weight: 700; margin: 0 0 .4rem; line-height: 1.35; }
