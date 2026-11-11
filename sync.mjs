@@ -27,6 +27,7 @@ const ROOT = process.cwd();
 const POSTS_DIR = path.join(ROOT, "src/content/posts");
 const ATTACH_DIR = path.join(ROOT, "public/attachments");
 const CACHE_FILE = path.join(ROOT, ".summary-cache.json");
+const BOOKMARK_CACHE = path.join(ROOT, ".bookmark-cache.json");
 const SKIP_DIRS = new Set([".git", ".obsidian", "_templates", "node_modules"]);
 const IMG_EXT = /\.(png|jpe?g|gif|svg|webp|avif)$/i;
 
@@ -201,6 +202,144 @@ function transformCallouts(md) {
   return out.join("\n");
 }
 
+/* ── 노션풍 링크 북마크 ──────────────────────────────────────────────
+ * 단독 줄에 놓인 URL 을 제목·설명·썸네일이 있는 카드로 바꾼다.
+ * (인라인 링크 `[제목](url)` 와 리스트 안의 URL 은 평문 링크로 그대로 둔다)
+ */
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+const escapeAttr = (s) =>
+  String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const decodeEntities = (s) =>
+  String(s)
+    .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#0?39;/g, "'")
+    .replace(/&#x27;/gi, "'").replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * 링크의 OG 메타데이터(제목·설명·썸네일·파비콘)를 읽어온다.
+ * 실패(네트워크/타임아웃/비HTML/봇차단)하면 null → 카드 대신 평문 링크로 남는다.
+ */
+async function fetchOg(url) {
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      headers: { "user-agent": UA, accept: "text/html,application/xhtml+xml" },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return null;
+    if (!/text\/html|application\/xhtml/i.test(res.headers.get("content-type") || "")) return null;
+    const html = (await res.text()).slice(0, 400000); // <head> 만 보면 충분
+
+    // <meta property|name="..." content="..."> (속성 순서 무관)
+    const metaOf = (prop) => {
+      for (const m of html.matchAll(/<meta\s+([^>]+?)\/?>/gi)) {
+        const attrs = m[1];
+        const key = (attrs.match(/(?:property|name)\s*=\s*["']([^"']+)["']/i) || [])[1];
+        if (!key || key.toLowerCase() !== prop) continue;
+        const val = (attrs.match(/content\s*=\s*["']([^"']*)["']/i) || [])[1];
+        if (val) return decodeEntities(val);
+      }
+      return "";
+    };
+    // <link rel="...icon..." href="...">
+    const iconHref = (() => {
+      for (const m of html.matchAll(/<link\s+([^>]+?)\/?>/gi)) {
+        const attrs = m[1];
+        const rel = (attrs.match(/rel\s*=\s*["']([^"']+)["']/i) || [])[1] || "";
+        if (!/\bicon\b/i.test(rel)) continue;
+        const href = (attrs.match(/href\s*=\s*["']([^"']*)["']/i) || [])[1];
+        if (href) return href;
+      }
+      return "";
+    })();
+
+    const base = res.url || url;
+    const abs = (u) => { try { return u ? new URL(u, base).href : ""; } catch { return ""; } };
+    const host = (() => { try { return new URL(base).hostname.replace(/^www\./, ""); } catch { return url; } })();
+    const titleTag = decodeEntities((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || "");
+
+    return {
+      ok: true,
+      title: metaOf("og:title") || metaOf("twitter:title") || titleTag || host,
+      desc: metaOf("og:description") || metaOf("twitter:description") || metaOf("description") || "",
+      image: abs(metaOf("og:image") || metaOf("twitter:image")),
+      favicon: abs(iconHref) || `https://${host}/favicon.ico`,
+      host,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// 단독 줄 URL. 뒤에 붙은 마침표/쉼표는 떼고 인식한다.
+const BARE_URL_LINE = /^<?(https?:\/\/[^\s<>()\[\]]+?)>?[.,]?$/;
+const FENCE = /^\s*(`{3,}|~{3,})/;
+
+/** 본문에서 단독 줄 URL 수집 (펜스 코드블록 안은 제외) */
+function bookmarkUrlsIn(md) {
+  const urls = [];
+  let inFence = false;
+  for (const line of md.split("\n")) {
+    if (FENCE.test(line)) { inFence = !inFence; continue; }
+    if (inFence) continue;
+    const m = line.trim().match(BARE_URL_LINE);
+    if (m && !urls.includes(m[1])) urls.push(m[1]);
+  }
+  return urls;
+}
+
+function bookmarkCard(url, meta) {
+  const thumb = meta.image
+    ? `<div class="bookmark-thumb"><img src="${escapeAttr(meta.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" /></div>`
+    : "";
+  const fav = meta.favicon
+    ? `<img class="bookmark-favicon" src="${escapeAttr(meta.favicon)}" alt="" loading="lazy" referrerpolicy="no-referrer" />`
+    : "";
+  const desc = meta.desc ? `<div class="bookmark-desc">${escapeHtml(meta.desc)}</div>` : "";
+  // 최외곽을 <div> 로 감싼다: 마크다운은 블록 레벨 태그로 시작할 때만 raw HTML 블록으로
+  // 통과시키므로, 인라인 태그인 <a> 로 시작하면 파서가 문단으로 보고 구조를 깨뜨린다.
+  return (
+    `<div class="bookmark-wrap">` +
+    `<a class="bookmark" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">` +
+    `<div class="bookmark-body">` +
+    `<div class="bookmark-title">${escapeHtml(meta.title)}</div>` +
+    desc +
+    `<div class="bookmark-origin">${fav}<span>${escapeHtml(meta.host)}</span></div>` +
+    `</div>${thumb}</a></div>`
+  );
+}
+
+/**
+ * 단독 줄 URL → 북마크 카드. 조회 결과는 cache 에 쌓아 재호출을 막는다
+ * (실패도 {ok:false} 로 기억 → 매번 재시도하지 않음. 다시 시도하려면 캐시 파일 삭제).
+ */
+async function transformBookmarks(md, cache) {
+  const urls = bookmarkUrlsIn(md);
+  if (urls.length === 0) return { md, count: 0 };
+  const missing = urls.filter((u) => !(u in cache));
+  if (missing.length) {
+    const got = await Promise.all(missing.map((u) => fetchOg(u)));
+    missing.forEach((u, i) => { cache[u] = got[i] || { ok: false }; });
+  }
+  let count = 0;
+  const out = [];
+  let inFence = false;
+  for (const line of md.split("\n")) {
+    if (FENCE.test(line)) { inFence = !inFence; out.push(line); continue; }
+    const m = inFence ? null : line.trim().match(BARE_URL_LINE);
+    const meta = m && cache[m[1]];
+    if (!meta || !meta.ok) { out.push(line); continue; }
+    out.push("", bookmarkCard(m[1], meta), "");
+    count++;
+  }
+  return { md: out.join("\n"), count };
+}
+
 async function rmrf(p) { await fs.rm(p, { recursive: true, force: true }); }
 
 async function main() {
@@ -227,6 +366,10 @@ async function main() {
   // 요약 캐시 로드 (본문 해시 → 요약). 안 바뀐 글은 LLM 재호출 안 함.
   let cache = {};
   try { cache = JSON.parse(await fs.readFile(CACHE_FILE, "utf8")); } catch {}
+  // 북마크 OG 메타 캐시 (URL → 제목/설명/썸네일)
+  let bmCache = {};
+  try { bmCache = JSON.parse(await fs.readFile(BOOKMARK_CACHE, "utf8")); } catch {}
+  let bmCount = 0;
   let aiCount = 0;
 
   // 본문 앞부분에서 description 폴백 생성
@@ -294,6 +437,13 @@ async function main() {
       return slug ? `[${display}](/posts/${slug})` : display;
     });
 
+    // 2-3) 단독 줄 URL → 노션풍 북마크 카드 (OG 메타 조회, .bookmark-cache.json 캐시)
+    {
+      const r = await transformBookmarks(body, bmCache);
+      body = r.md;
+      bmCount += r.count;
+    }
+
     // 3) frontmatter 정규화
     const created = field(p.fm, "created") || "";
     const date = (created.match(/\d{4}-\d{2}-\d{2}/) || [""])[0];
@@ -343,10 +493,11 @@ async function main() {
 
   // 요약 캐시 저장
   await fs.writeFile(CACHE_FILE, JSON.stringify(cache, null, 2), "utf8");
+  await fs.writeFile(BOOKMARK_CACHE, JSON.stringify(bmCache, null, 2), "utf8");
 
   console.log(`\n✅ 동기화 완료`);
   published.forEach((p) => console.log(`   - ${p.title}  →  /posts/${p.slug}`));
-  console.log(`   글 ${published.length}개 · 첨부 ${copied}개 · AI 요약 ${aiCount}개 생성\n`);
+  console.log(`   글 ${published.length}개 · 첨부 ${copied}개 · AI 요약 ${aiCount}개 생성 · 북마크 ${bmCount}개\n`);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
