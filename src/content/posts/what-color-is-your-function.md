@@ -3,7 +3,9 @@ title: "What color is your function?"
 date: 2026-06-17
 tags: ["Async"]
 category: "Computer Science/Programming Language"
-description: "밥 니스트롬(Bob Nystrom)의 2015년 What Color is Your Function?을 바탕으로 비동기 프로그래밍 시 발생하는 함수의 색 문제를 이해해보고자 리뷰를 만들었습니다. 비유 설정 JS와 비슷한 가상의 언어를 "
+description: "비동기 프로그래밍에서 동기/비동기 함수가 '색'처럼 구분되어 비동기 함수는 비동기 함수만 호출 가능하고 전체 코드에 전염되는 문제가 발생하는데, 이는 콜스택을 풀어야 하는 근본 원인 때문이며 Go의 고루틴이나 Java 21의 버추얼 스레드처럼 스레드 기반 동시성 모델을 통해 콜스택을 보존하면 이 문제를 해결할 수 있다."
+showSummary: true
+aiSummary: true
 ---
 
 밥 니스트롬(Bob Nystrom)의 2015년 [What Color is Your Function?](https://journal.stuffwithstuff.com/2015/02/01/what-color-is-your-function/ "Permanent Link to What Color is Your Function?")을 바탕으로 비동기 프로그래밍 시 발생하는 함수의 색 문제를 이해해보고자 리뷰를 만들었습니다.

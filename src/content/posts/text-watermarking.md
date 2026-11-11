@@ -3,7 +3,9 @@ title: "Text Watermarking"
 date: 2026-10-07
 tags: ["AI", "LLM"]
 category: "Artificial Intelligence/LLM"
-description: "2024년 Google의 워터마크 적용을 시작으로, 올해 8월엔 Anthropic, 10월엔 OpenAI가 LLM이 생성하는 글에 텍스트 워터마크를 적용하겠다는 입장을 밝혔습니다. OpenAI의 Our approach to EU te"
+description: "Google, Anthropic, OpenAI 등이 EU 인공지능 법안에 따라 LLM 생성 텍스트에 워터마크를 적용하고 있으며, 주요 방식으로는 green/red list, Gumbel, tournament sampling, textGrain 등이 있다. 워터마크는 마지막 샘플링 단계에서만 작동하고 분포 엔트로피가 충분할 때만 유효하지만, 패러프레이징이나 편집으로 쉽게 제거되므로 결국 출처 표시 도구일 뿐 진정한 AI 탐지 수단으로는 한계가 있다."
+showSummary: true
+aiSummary: true
 ---
 
 2024년 Google의 워터마크 적용을 시작으로, 올해 8월엔 Anthropic, 10월엔 OpenAI가 LLM이 생성하는 글에 텍스트 워터마크를 적용하겠다는 입장을 밝혔습니다. OpenAI의 [Our approach to EU text provenanace rules](https://openai.com/index/eu-text-provenance/)과 여러 AI 연구 블로그에서 말하는 바에 따르면 [EU의 인공지능 법안](https://eur-lex.europa.eu/eli/reg/2024/1689/oj/eng#art_50)에 따라 특정 인공지능 생성 및 조작 콘텐츠에 대한 투명성 의무가 요구되는 것 같습니다.
