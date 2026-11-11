@@ -3,7 +3,9 @@ title: "Implementing Blog Comments with Supabase"
 date: 2026-06-30
 tags: ["Blog", "Astro", "Supabase"]
 category: "Backend/Astro"
-description: "Static 블로그에서의 댓글 현재 개발중인 블로그는 빌드 시점에 Astro가 모든 페이지를 미리 HTML 파일로 구워두고, Vercel로 해당 정적 파일을 뿌려주기만 하는 방식입니다. Giscus로 \"서버 + DB + 로그인을\" G"
+description: "Astro 정적 블로그에 Vercel 서버리스 함수와 Supabase를 활용해 커스텀 댓글 기능을 구현했으며, RLS를 통한 행 단위 보안, 소셜로그인 인증, 스팸 방어, 비밀 댓글 등의 기능을 추가했다. 댓글 조회는 RPC 함수로 마스킹 처리하고 작성자와 관리자만 내용을 볼 수 있게 제한했다."
+showSummary: true
+aiSummary: true
 ---
 
 # Static 블로그에서의 댓글

@@ -3,7 +3,9 @@ title: "Java Virtual Thread"
 date: 2026-06-18
 tags: ["Java", "JVM", "Async"]
 category: "Computer Science/Operating System"
-description: "Virtual Thread 란? 버추얼 스레드(Virtual Thread)는 Java 21에서 정식화된, 동시성 처리 방식을 근본적으로 바꾼 기능입니다. 기존 Java의 스레드 모델은 Native Thread로, Java의 유저 스레"
+description: "Virtual Thread는 Java 21에서 정식화된 경량 스레드로, 기존 Native Thread의 높은 비용(메모리 ~2MB, 생성시간 ~1ms)을 해결하기 위해 JVM이 관리하는 M:N 모델(여러 Virtual Thread가 소수의 Platform Thread 위에서 실행)을 도입하여 메모리 ~10KB, 생성시간 ~1μs의 저렴한 비용으로 수십만 개의 스레드 생성을 가능하게 했습니다. I/O Bound 작업에서 기존 Thread 대비 51% 이상, Reactive 대비 111% 좋은 성능을 보이나, CPU Bound 작업에서는 오히려 성능이 저하되고 synchronized나 네이티브 메서드 사용 시 Pinning 문제"
+showSummary: true
+aiSummary: true
 ---
 
 # Virtual Thread 란?

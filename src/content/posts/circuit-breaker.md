@@ -3,7 +3,9 @@ title: "Circuit Breaker"
 date: 2026-06-18
 tags: ["MSA", "Web"]
 category: "Computer Science/Design Pattern"
-description: "MSA 환경에서의 장애 발생 모든 서비스 운영에서는 아무리 완벽한 설계를 했다고 해도, 예기치 못한 에러가 발생할 수 밖에 없습니다. 때문에 우리는 완벽한 시스템을 만들기 보다, 실패에 빠르고 유연하게 대응할 수 있는 시스템을 만드는"
+description: "MSA 환경에서는 한 서비스의 장애가 연쇄적으로 전파되는 문제를 해결하기 위해 서킷 브레이커 패턴이 사용되며, 이는 Closed(정상), Open(차단), Half Open(복구 시도) 3가지 상태로 전환하며 장애를 격리한다. Java에서는 deprecated된 Hystrix 대신 Resilience4j 라이브러리를 사용할 수 있다."
+showSummary: true
+aiSummary: true
 ---
 
 # MSA 환경에서의 장애 발생

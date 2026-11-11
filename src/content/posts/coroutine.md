@@ -3,7 +3,9 @@ title: "Coroutine"
 date: 2026-06-22
 tags: ["Java", "Kotlin", "Async"]
 category: "Computer Science/Programming Language"
-description: "정의 서브루틴의 일반화 코루틴은 1958년 멜빈 콘웨이가 만든, CS에서 가장 오래된 개념 중 하나입니다. 서브루틴(=함수)을 일반화한 것으로: 서브루틴: 진입점 1개, 끝까지 실행 → return 1번. 호출되면 호출자에게 종속(c"
+description: "코루틴은 서브루틴을 일반화한 개념으로, 실행 중 제어를 양보하고 로컬 상태를 보존한 채 중단했다가 재개할 수 있는 협력적 멀티태스킹을 지원합니다. 코루틴은 suspend 함수, 빌더, 구조적 동시성 스코프, 디스패처라는 4가지 요소로 구성되며, 컴파일러의 CPS 변환을 통해 지역 변수와 파라미터를 스택이 아닌 힙의 컨티뉴에이션 객체에 저장함으로써 어느 스레드에서 재개하든 상태를 유지할 수 있습니다."
+showSummary: true
+aiSummary: true
 ---
 
 # 정의 - 서브루틴의 일반화

@@ -2,8 +2,10 @@
 title: "How LLMs Work Internally"
 date: 2026-07-28
 tags: ["AI", "LLM"]
-category: "Artificial intelligence/LLM"
-description: "회사 업무, 개인 프로젝트, 문서 정리, 기술 공부 등 모든 일상에 LLM을 활용하고, 더 좋은 답변, 정확한 답변을 얻기 위한 다양한 기술들이 발전하고 있습니다. 프롬프트 엔지니어링, 하네스 엔지니어링, 이제는 멀티 에이전트까지 등"
+category: "Artificial Intelligence/LLM"
+description: "LLM은 토크나이제이션, 임베딩, 위치 인코딩, Transformer 어텐션, 다음 단어 예측 등의 단계를 거쳐 텍스트를 처리하고 생성하며, 각 단계에서 토큰 ID를 벡터로 변환하고 문맥을 파악한 후 확률 기반으로 다음 단어를 선택한다. Temperature 같은 매개변수로 확률 분포를 조절하여 모델의 창의성과 일관성을 제어할 수 있다."
+showSummary: true
+aiSummary: true
 ---
 
 회사 업무, 개인 프로젝트, 문서 정리, 기술 공부 등 모든 일상에 LLM을 활용하고, 더 좋은 답변, 정확한 답변을 얻기 위한 다양한 기술들이 발전하고 있습니다. 프롬프트 엔지니어링, 하네스 엔지니어링, 이제는 멀티 에이전트까지 등장하며 프롬프트마저 LLM이 자체 생성하고 있습니다. 이러한 기술의 발전은 LLM의 어떤 부분을 타깃으로 튜닝되는지를 고민해보며 LLM의 내부 동작 원리를 정리하게 되었습니다.
@@ -222,7 +224,7 @@ Transformer는 데이터를 어떻게 처리할지 정의하는 **신경망 구
 
 Attention의 수식은 다음과 같습니다.
 
-$Attention(Q,K,V) = softmax\left(\frac{QK^T}{\sqrt{d_k}}\right)V$
+$\text{Attention}(Q,K,V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$
 
 Attention Is All You Need 논문에서 Transformer는 **인코더**와 **디코더**라는 두 가지 주요 블록으로 구성되어 있으며, 각 블록 안에는 핵심 구성 요소인 **셀프 어텐션(Self-Attention) 메커니즘**과 <b>피드 포워드 신경망(Feed-Forward Neural Network, FFN)</b>이 반복적으로 나타납니다.
 
@@ -436,5 +438,5 @@ K값 설정에 따라 출력 품질이 크게 변화되고, **K값이 너무 작
 ## Reference
 - [Kakao Pay Tech Blog, 백엔드 개발자의 시선으로 풀어본 LLM 내부 동작 원리: 6단계로 쉽게 이해하기](https://tech.kakaopay.com/post/how-llm-works)
 - [Standford Lectures, Yann Dubois, CS229: Machine Learning | Building LLMs](https://www.youtube.com/watch?v=9vM4p9NN0Ts)
-- [Vaswani et al., "Attention Is All You Need", NeurIPS 2017](https://arxiv.org/abs/1706.03762)
-- [Hoffmann et al., "Training Compute-Optimal Large Language Models"](https://arxiv.org/abs/2203.15556)
+- [Vaswani et al. (2017), "Attention Is All You Need", NeurIPS](https://arxiv.org/abs/1706.03762)
+- [Hoffmann et al. (2022), "Training Compute-Optimal Large Language Models"](https://arxiv.org/abs/2203.15556)
